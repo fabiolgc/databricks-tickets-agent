@@ -1,0 +1,119 @@
+# Databricks Tickets Agent - Customer Support Analysis with GenAI
+
+Complete solution for analyzing customer support tickets using Databricks and GenAI.
+
+## Project Structure
+
+```
+databricks-tickets-agent/
+├── data/                    # CSV data files (3,574 records)
+│   ├── companies.csv        # 100 customer companies
+│   ├── customers.csv        # 300 individual users
+│   ├── agents.csv          # 25 support agents
+│   ├── tickets.csv         # 500 support tickets
+│   └── ticket_interactions.csv  # 2,649 interactions
+│
+├── sql/                     # SQL scripts for Databricks
+│   ├── ddl_tables.sql      # DDL to create Delta tables
+│   ├── load_data.sql       # Data loading scripts
+│   ├── analysis_queries.sql # 50+ ready-to-use queries
+│   └── quick_demo_notebook.sql # SQL demo notebook
+│
+├── notebooks/               # Databricks notebooks
+│   ├── setup_and_analysis_notebook.py  # Complete setup + analysis
+│   └── genai_agent_example.py          # GenAI examples
+│
+├── scripts/                 # Python utility scripts
+│   ├── generate_data.py    # Synthetic data generator
+│   ├── validate_data.py    # Data quality validation
+│   └── requirements.txt    # Python dependencies
+│
+└── docs/                    # Documentation (Portuguese)
+    ├── README_pt.md         # Complete documentation
+    ├── QUICKSTART_pt.md     # 5-minute quick start
+    ├── PROJECT_SUMMARY_pt.md # Executive summary
+    └── genie_example_prompts_pt.md # Genie prompt examples
+
+```
+
+## Quick Start
+
+### 1. Upload Data to Databricks
+```bash
+# Upload CSV files to DBFS
+databricks fs cp data/*.csv dbfs:/FileStore/tickets/
+```
+
+### 2. Import Notebook
+- Import `notebooks/setup_and_analysis_notebook.py` into Databricks
+- Configure parameters (schema, CSV path)
+- Run all cells
+
+### 3. Start Analyzing
+- Use `sql/quick_demo_notebook.sql` for quick demos
+- Execute queries from `sql/analysis_queries.sql`
+- Create Genie Space for natural language queries
+
+## Key Features
+
+- ✅ 500 realistic support tickets in Portuguese (BR)
+- ✅ Payment processing context (similar to Cielo)
+- ✅ 5 related Delta tables with referential integrity
+- ✅ PII fields identified and tagged
+- ✅ Ready-to-use notebooks and queries
+- ✅ Churn risk detection
+- ✅ SLA monitoring
+- ✅ Sentiment analysis
+- ✅ Agent performance tracking
+
+## Documentation
+
+All detailed documentation is available in Portuguese in the `docs/` folder:
+
+- **README_pt.md** - Complete technical documentation
+- **QUICKSTART_pt.md** - 5-minute setup guide
+- **PROJECT_SUMMARY_pt.md** - Executive summary and statistics
+- **genie_example_prompts_pt.md** - Example questions for Databricks Genie
+
+## Use Cases
+
+1. **Executive Summaries** - "What's happening this week?"
+2. **Churn Risk Analysis** - Identify customers at risk of leaving
+3. **Performance Monitoring** - Track SLA compliance and team metrics
+4. **Trend Analysis** - Discover patterns and common issues
+5. **Next Best Action** - AI-powered recommendations
+
+## Technical Stack
+
+- **Delta Lake** - ACID transactions
+- **Databricks SQL** - Analytics engine
+- **Unity Catalog** - Governance and PII tags
+- **PySpark** - Data processing
+- **Databricks Genie** - Natural language queries
+
+## Requirements
+
+- Databricks workspace
+- Python 3.8+ (for local data generation)
+- Faker library (included in requirements.txt)
+
+## Data Statistics
+
+- Companies: 100
+- Customers: 300
+- Agents: 25
+- Tickets: 500
+- Interactions: 2,649
+- **Total Records: 3,574**
+
+## Support
+
+This is a demonstration project with synthetic data. All names, companies, and identifiers are fictitious.
+
+For detailed instructions in Portuguese, see `docs/README_pt.md`.
+
+---
+
+**Version:** 1.0  
+**Date:** January 2026  
+**Status:** ✅ Production-ready
