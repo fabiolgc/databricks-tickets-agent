@@ -1,0 +1,26 @@
+agent_id,agent_name,email,team,specialization,hire_date,avg_csat,tickets_resolved,status,created_at
+AGENT001,Sarah Johnson,sarah.johnson@support.company.com,L2_TECHNICAL,PAYMENT_PROCESSING,2024-07-28,4.8,702,ACTIVE,2024-07-28 00:00:00
+AGENT002,Michael Chen,michael.chen@support.company.com,L2_TECHNICAL,CHARGEBACKS,2024-10-04,4.89,662,ACTIVE,2024-10-04 00:00:00
+AGENT003,Emily Rodriguez,emily.rodriguez@support.company.com,L3_SPECIALIST,INTEGRATION,2025-07-27,4.66,1140,ACTIVE,2025-07-27 00:00:00
+AGENT004,David Kim,david.kim@support.company.com,FINANCIAL,BILLING,2023-07-11,4.29,1022,ACTIVE,2023-07-11 00:00:00
+AGENT005,Jennifer Martinez,jennifer.martinez@support.company.com,L1_SUPPORT,PAYMENT_PROCESSING,2023-03-19,3.96,274,ACTIVE,2023-03-19 00:00:00
+AGENT006,Robert Taylor,robert.taylor@support.company.com,FINANCIAL,INTEGRATION,2023-12-30,3.93,1459,ACTIVE,2023-12-30 00:00:00
+AGENT007,Amanda White,amanda.white@support.company.com,L1_SUPPORT,INTEGRATION,2025-09-01,4.16,1392,ACTIVE,2025-09-01 00:00:00
+AGENT008,Christopher Lee,christopher.lee@support.company.com,L2_TECHNICAL,BILLING,2023-06-11,3.57,1033,ACTIVE,2023-06-11 00:00:00
+AGENT009,Jessica Brown,jessica.brown@support.company.com,L2_TECHNICAL,INTEGRATION,2023-07-11,4.38,1319,ACTIVE,2023-07-11 00:00:00
+AGENT010,Daniel Garcia,daniel.garcia@support.company.com,FINANCIAL,MOBILE_PAYMENTS,2023-11-08,4.65,546,ACTIVE,2023-11-08 00:00:00
+AGENT011,Maria Lopez,maria.lopez@support.company.com,L1_SUPPORT,INTEGRATION,2024-04-17,4.83,275,ACTIVE,2024-04-17 00:00:00
+AGENT012,James Wilson,james.wilson@support.company.com,L2_TECHNICAL,POS_TERMINALS,2025-10-08,4.12,907,ACTIVE,2025-10-08 00:00:00
+AGENT013,Michelle Anderson,michelle.anderson@support.company.com,L2_TECHNICAL,CHARGEBACKS,2024-02-07,4.47,890,ACTIVE,2024-02-07 00:00:00
+AGENT014,Kevin Thomas,kevin.thomas@support.company.com,FINANCIAL,GENERAL,2023-11-27,4.69,177,ACTIVE,2023-11-27 00:00:00
+AGENT015,Laura Martinez,laura.martinez@support.company.com,L2_TECHNICAL,INTEGRATION,2024-08-15,3.79,715,ACTIVE,2024-08-15 00:00:00
+AGENT016,Brian Jackson,brian.jackson@support.company.com,FINANCIAL,INTEGRATION,2025-11-04,4.03,404,ACTIVE,2025-11-04 00:00:00
+AGENT017,Nicole Harris,nicole.harris@support.company.com,FINANCIAL,INTEGRATION,2024-07-29,3.98,775,ACTIVE,2024-07-29 00:00:00
+AGENT018,Ryan Clark,ryan.clark@support.company.com,L3_SPECIALIST,INTEGRATION,2025-05-02,4.18,554,ACTIVE,2025-05-02 00:00:00
+AGENT019,Ashley Lewis,ashley.lewis@support.company.com,L3_SPECIALIST,INTEGRATION,2023-08-02,3.92,659,ACTIVE,2023-08-02 00:00:00
+AGENT020,Matthew Robinson,matthew.robinson@support.company.com,L3_SPECIALIST,BILLING,2023-04-27,3.79,1493,ACTIVE,2023-04-27 00:00:00
+AGENT021,Stephanie Walker,stephanie.walker@support.company.com,FINANCIAL,PAYMENT_PROCESSING,2025-04-17,4.17,1197,ACTIVE,2025-04-17 00:00:00
+AGENT022,Justin Hall,justin.hall@support.company.com,L3_SPECIALIST,PAYMENT_PROCESSING,2024-08-31,3.67,1435,ACTIVE,2024-08-31 00:00:00
+AGENT023,Rachel Allen,rachel.allen@support.company.com,FINANCIAL,CHARGEBACKS,2025-08-26,4.65,349,ACTIVE,2025-08-26 00:00:00
+AGENT024,Andrew Young,andrew.young@support.company.com,L3_SPECIALIST,POS_TERMINALS,2025-07-07,3.9,211,ACTIVE,2025-07-07 00:00:00
+AGENT025,Melissa King,melissa.king@support.company.com,L3_SPECIALIST,CHARGEBACKS,2025-02-02,4.42,1031,ACTIVE,2025-02-02 00:00:00
