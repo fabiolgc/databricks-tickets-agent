@@ -1,0 +1,26 @@
+agent_id,agent_name,email,team,specialization,hire_date,avg_csat,tickets_resolved,status,created_at
+AGENT001,Ana Silva,ana.silva@support.company.com,L1_SUPPORT,BILLING,2023-08-06,4.85,1154,ACTIVE,2023-08-06 00:00:00
+AGENT002,Carlos Oliveira,carlos.oliveira@support.company.com,L2_TECHNICAL,BILLING,2024-01-29,4.7,292,ACTIVE,2024-01-29 00:00:00
+AGENT003,Beatriz Santos,beatriz.santos@support.company.com,L2_TECHNICAL,INTEGRATION,2025-03-25,4.05,310,ACTIVE,2025-03-25 00:00:00
+AGENT004,Diego Costa,diego.costa@support.company.com,L2_TECHNICAL,GENERAL,2023-11-11,3.5,96,ACTIVE,2023-11-11 00:00:00
+AGENT005,Elena Rodrigues,elena.rodrigues@support.company.com,L3_SPECIALIST,CHARGEBACKS,2025-07-12,4.44,1165,ACTIVE,2025-07-12 00:00:00
+AGENT006,Fernando Lima,fernando.lima@support.company.com,FINANCIAL,INTEGRATION,2025-10-11,4.03,520,ACTIVE,2025-10-11 00:00:00
+AGENT007,Gabriela Alves,gabriela.alves@support.company.com,L2_TECHNICAL,CHARGEBACKS,2024-09-12,3.98,614,ACTIVE,2024-09-12 00:00:00
+AGENT008,Henrique Martins,henrique.martins@support.company.com,L2_TECHNICAL,BILLING,2023-03-30,4.57,115,ACTIVE,2023-03-30 00:00:00
+AGENT009,Isabela Ferreira,isabela.ferreira@support.company.com,FINANCIAL,INTEGRATION,2023-07-02,4.57,82,ACTIVE,2023-07-02 00:00:00
+AGENT010,João Pereira,joão.pereira@support.company.com,L2_TECHNICAL,PIX,2023-12-03,3.59,1266,ACTIVE,2023-12-03 00:00:00
+AGENT011,Karina Souza,karina.souza@support.company.com,L1_SUPPORT,CHARGEBACKS,2023-10-29,4.34,1490,ACTIVE,2023-10-29 00:00:00
+AGENT012,Lucas Barbosa,lucas.barbosa@support.company.com,L1_SUPPORT,PIX,2024-02-19,4.54,873,ACTIVE,2024-02-19 00:00:00
+AGENT013,Mariana Gomes,mariana.gomes@support.company.com,FINANCIAL,PIX,2023-01-14,4.26,165,ACTIVE,2023-01-14 00:00:00
+AGENT014,Nicolas Ribeiro,nicolas.ribeiro@support.company.com,L2_TECHNICAL,INTEGRATION,2024-12-12,4.89,529,ACTIVE,2024-12-12 00:00:00
+AGENT015,Olivia Carvalho,olivia.carvalho@support.company.com,L3_SPECIALIST,INTEGRATION,2024-03-04,4.34,1427,ACTIVE,2024-03-04 00:00:00
+AGENT016,Pedro Araújo,pedro.araújo@support.company.com,L3_SPECIALIST,PIX,2023-08-05,3.92,343,ACTIVE,2023-08-05 00:00:00
+AGENT017,Rafaela Castro,rafaela.castro@support.company.com,L2_TECHNICAL,CHARGEBACKS,2023-02-03,3.92,174,ACTIVE,2023-02-03 00:00:00
+AGENT018,Samuel Dias,samuel.dias@support.company.com,L2_TECHNICAL,BILLING,2025-08-09,4.45,1188,ACTIVE,2025-08-09 00:00:00
+AGENT019,Tatiana Mendes,tatiana.mendes@support.company.com,FINANCIAL,POS_MACHINES,2025-05-12,4.86,1367,ACTIVE,2025-05-12 00:00:00
+AGENT020,Vinicius Rocha,vinicius.rocha@support.company.com,FINANCIAL,GENERAL,2023-10-02,4.23,1476,ACTIVE,2023-10-02 00:00:00
+AGENT021,Wagner Teixeira,wagner.teixeira@support.company.com,FINANCIAL,CHARGEBACKS,2025-03-13,3.71,820,ACTIVE,2025-03-13 00:00:00
+AGENT022,Yasmin Cardoso,yasmin.cardoso@support.company.com,L2_TECHNICAL,GENERAL,2025-01-03,4.25,543,ACTIVE,2025-01-03 00:00:00
+AGENT023,Zeca Monteiro,zeca.monteiro@support.company.com,L2_TECHNICAL,PAYMENTS,2024-08-26,4.7,345,ACTIVE,2024-08-26 00:00:00
+AGENT024,Amanda Pinto,amanda.pinto@support.company.com,FINANCIAL,POS_MACHINES,2024-03-13,4.29,903,ACTIVE,2024-03-13 00:00:00
+AGENT025,Bruno Cunha,bruno.cunha@support.company.com,L2_TECHNICAL,CHARGEBACKS,2024-08-09,3.84,466,ACTIVE,2024-08-09 00:00:00
