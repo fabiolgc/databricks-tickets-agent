@@ -11,7 +11,7 @@
 -- Returns: Table with company_id and company_name
 -- ============================================================================
 CREATE OR REPLACE FUNCTION get_company_id_by_name(
-  company_name_param STRING
+  company_name_param STRING COMMENT 'Company name or partial name to search for. Case-insensitive partial matching is supported (e.g., "Tech" will match "Tech Solutions Ltd")'
 )
 RETURNS TABLE(
   company_id STRING,
@@ -21,7 +21,7 @@ RETURNS TABLE(
   status STRING,
   churn_risk_score DECIMAL(3,2)
 )
-COMMENT 'Returns company IDs matching the provided company name (case-insensitive partial match)'
+COMMENT 'Searches for companies by name using case-insensitive partial matching. Returns company basic info including ID, name, segment, size, status and churn risk score. Useful for finding company_id when you only know part of the company name.'
 RETURN
   SELECT
     company_id,
@@ -48,11 +48,11 @@ RETURN
 -- Returns: Table with comprehensive ticket data
 -- ============================================================================
 CREATE OR REPLACE FUNCTION get_ticket_complete_data(
-  ticket_id_param STRING,
-  company_id_param STRING,
-  status_param STRING,
-  date_from TIMESTAMP,
-  date_to TIMESTAMP
+  ticket_id_param STRING COMMENT 'Specific ticket ID to retrieve (e.g., "TKT000001"). Use NULL to retrieve all tickets.',
+  company_id_param STRING COMMENT 'Filter tickets by company ID (e.g., "COMP00001"). Use NULL to retrieve tickets from all companies.',
+  status_param STRING COMMENT 'Filter tickets by status (OPEN, CLOSED, IN_PROGRESS, PENDING_CUSTOMER, RESOLVED, CANCELLED). Use NULL for all statuses.',
+  date_from TIMESTAMP COMMENT 'Start date for ticket creation filter. Only tickets created on or after this date will be returned. Use NULL for no start date limit.',
+  date_to TIMESTAMP COMMENT 'End date for ticket creation filter. Only tickets created on or before this date will be returned. Use NULL for no end date limit.'
 )
 RETURNS TABLE(
   -- Ticket Information
@@ -107,7 +107,7 @@ RETURNS TABLE(
   last_interaction_timestamp TIMESTAMP,
   last_interaction_author STRING
 )
-COMMENT 'Returns comprehensive ticket data with company, customer, agent and interaction statistics'
+COMMENT 'Returns comprehensive ticket information with all related data in a single query. Includes ticket details (status, priority, category, subject, description), company info (name, segment, size, churn risk), customer details (name, email, role), assigned agent info (name, team, specialization, performance metrics), and interaction statistics (total interactions, counts by author type, last interaction). This is the primary function for retrieving complete ticket context for analysis, reporting, or AI agent processing.'
 RETURN
   SELECT
     -- Ticket Information
@@ -201,9 +201,9 @@ RETURN
 -- Returns: Table with detailed ticket interactions
 -- ============================================================================
 CREATE OR REPLACE FUNCTION get_ticket_interactions(
-  ticket_id_param STRING,
-  company_id_param STRING,
-  author_type_param STRING
+  ticket_id_param STRING COMMENT 'Specific ticket ID to retrieve interactions for (e.g., "TKT000001"). Use NULL to retrieve interactions from all tickets.',
+  company_id_param STRING COMMENT 'Filter interactions by company ID (e.g., "COMP00001"). Use NULL to retrieve interactions from all companies.',
+  author_type_param STRING COMMENT 'Filter interactions by author type: CUSTOMER (messages from customers), AGENT (messages from support agents), or SYSTEM (automated system messages). Use NULL for all types.'
 )
 RETURNS TABLE(
   -- Ticket Basic Info
@@ -226,7 +226,7 @@ RETURNS TABLE(
   channel STRING,
   attachments ARRAY<STRING>
 )
-COMMENT 'Returns detailed interaction history for tickets with company and ticket context'
+COMMENT 'Returns the complete interaction history (conversation) for tickets. Each row represents one message/interaction with details including timestamp, author information (type, ID, name), message content, interaction type, channel used, and any attachments. Results are ordered chronologically. Use this function to view the full communication thread of tickets, analyze response patterns, or feed conversation history to AI models.'
 RETURN
   SELECT
     -- Ticket Basic Info
@@ -272,7 +272,7 @@ RETURN
 -- Returns: Single row with ticket info and all interactions as array
 -- ============================================================================
 CREATE OR REPLACE FUNCTION get_ticket_full_conversation(
-  ticket_id_param STRING
+  ticket_id_param STRING COMMENT 'REQUIRED: Specific ticket ID to retrieve full conversation for (e.g., "TKT000001"). This parameter cannot be NULL as the function returns a single ticket with all its interactions.'
 )
 RETURNS TABLE(
   -- Ticket Information
@@ -311,7 +311,7 @@ RETURNS TABLE(
     interaction_type: STRING
   >>
 )
-COMMENT 'Returns complete ticket with full conversation history as structured array'
+COMMENT 'Returns a single row containing complete ticket information with all interactions aggregated into a structured array. Ideal for AI/LLM processing, conversation analysis, or generating summaries. The interactions array contains all messages with timestamp, author type/name, message content, and interaction type. This denormalized format makes it easy to pass the entire ticket context to language models for sentiment analysis, summarization, or next-best-action recommendations.'
 RETURN
   SELECT
     -- Ticket Information
@@ -382,9 +382,9 @@ RETURN
 -- Returns: Table with company ticket statistics
 -- ============================================================================
 CREATE OR REPLACE FUNCTION get_company_tickets_summary(
-  company_id_param STRING,
-  date_from TIMESTAMP,
-  date_to TIMESTAMP
+  company_id_param STRING COMMENT 'REQUIRED: Company ID to retrieve ticket summary for (e.g., "COMP00001"). This parameter cannot be NULL.',
+  date_from TIMESTAMP COMMENT 'Optional start date for filtering tickets. Only tickets created on or after this date will be included in statistics. Use NULL to include all historical tickets.',
+  date_to TIMESTAMP COMMENT 'Optional end date for filtering tickets. Only tickets created on or before this date will be included in statistics. Use NULL to include tickets up to current date.'
 )
 RETURNS TABLE(
   company_id STRING,
@@ -409,7 +409,7 @@ RETURNS TABLE(
   period_start TIMESTAMP,
   period_end TIMESTAMP
 )
-COMMENT 'Returns aggregated ticket statistics and KPIs for a specific company'
+COMMENT 'Returns comprehensive aggregated statistics for a single company including ticket counts by status (open, in progress, resolved, closed), priority distribution (critical, high), SLA metrics (breach count), escalation count, average resolution and response times, satisfaction scores (CSAT, NPS), and total interactions. Useful for company health checks, executive reporting, account reviews, and identifying companies needing attention.'
 RETURN
   SELECT
     co.company_id,
@@ -460,10 +460,10 @@ RETURN
 -- Returns: Table with comprehensive company data and KPIs
 -- ============================================================================
 CREATE OR REPLACE FUNCTION get_company_complete_data(
-  company_id_param STRING,
-  segment_param STRING,
-  min_churn_risk DECIMAL(3,2),
-  status_param STRING
+  company_id_param STRING COMMENT 'Optional: Specific company ID to retrieve (e.g., "COMP00001"). Use NULL to retrieve all companies.',
+  segment_param STRING COMMENT 'Optional: Filter companies by business segment (e.g., RETAIL, HEALTHCARE, ECOMMERCE, SERVICES, EDUCATION, RESTAURANT, AUTOMOTIVE). Use NULL to include all segments.',
+  min_churn_risk DECIMAL(3,2) COMMENT 'Optional: Minimum churn risk score threshold (0.00 to 1.00). Only companies with churn_risk_score >= this value will be returned. Use NULL to include companies with any churn risk level. Example: 0.7 for high-risk companies.',
+  status_param STRING COMMENT 'Optional: Filter companies by status (ACTIVE, SUSPENDED, CHURNED, TRIAL). Use NULL to include all statuses.'
 )
 RETURNS TABLE(
   -- Company Information
@@ -513,7 +513,7 @@ RETURNS TABLE(
   last_ticket_date TIMESTAMP,
   days_since_last_ticket INT
 )
-COMMENT 'Returns comprehensive company data with ticket statistics, KPIs and risk indicators'
+COMMENT 'Returns the most comprehensive company view available, combining company profile (name, segment, size, contract date, transaction volume), customer counts (total and active in last 30 days), all-time ticket statistics, recent ticket activity (last 30 days), performance metrics (resolution time, CSAT, NPS), sentiment analysis, boolean risk indicators (high churn risk, recent complaints, SLA violations, critical open tickets), and days since last ticket. This is the primary function for company health assessment, account management, churn prediction, and identifying companies needing intervention. Can be filtered by segment, churn risk threshold, and status to find specific company cohorts.'
 RETURN
   SELECT
     -- Company Information
@@ -657,9 +657,9 @@ RETURN
 -- Returns: Table with at-risk companies and recommended actions
 -- ============================================================================
 CREATE OR REPLACE FUNCTION get_companies_at_churn_risk(
-  min_churn_risk DECIMAL(3,2),
-  min_tickets INT,
-  days_back INT
+  min_churn_risk DECIMAL(3,2) COMMENT 'Minimum churn risk score threshold (0.00 to 1.00). Only active companies with churn_risk_score >= this value will be analyzed. Recommended values: 0.6 for medium risk, 0.7 for high risk, 0.8 for critical risk. Default: 0.6',
+  min_tickets INT COMMENT 'Minimum number of tickets in the analysis period to include the company (prevents false positives from inactive companies). Companies with churn_risk_score >= 0.8 are included regardless. Default: 1',
+  days_back INT COMMENT 'Number of days to look back for ticket activity analysis. Statistics like recent tickets, complaints, and SLA violations are calculated for this period. Common values: 30 (last month), 15 (recent activity), 60 (quarterly). Default: 30'
 )
 RETURNS TABLE(
   company_id STRING,
@@ -680,7 +680,7 @@ RETURNS TABLE(
   recommended_action STRING,
   action_priority INT
 )
-COMMENT 'Returns companies at churn risk with analysis and recommended actions'
+COMMENT 'Identifies companies at risk of churning and provides AI-powered actionable recommendations. Returns risk classification (CRITICAL, VERY_HIGH, HIGH, MEDIUM), recent ticket metrics (count, critical tickets, complaints, SLA violations), satisfaction scores (CSAT, NPS), negative sentiment percentage, and most importantly: a specific recommended action based on the risk profile and an action priority (1-5, where 1 is most urgent). Use this function to generate daily/weekly at-risk company reports for customer success teams, prioritize interventions, and proactively prevent churn. Filter by risk level and sort by action_priority to focus on companies needing immediate attention.'
 RETURN
   WITH company_stats AS (
     SELECT
