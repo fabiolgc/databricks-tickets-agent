@@ -38,7 +38,7 @@ RETURN
 --              for next best action analysis and pattern recognition
 -- ============================================================================
 CREATE OR REPLACE FUNCTION get_company_all_tickets(
-  company_id_param STRING COMMENT 'Company ID to retrieve all tickets for (e.g., "COMP00001"). Returns complete ticket history with interactions, resolutions, and metrics to enable next best action recommendations and pattern analysis.'
+  company_id_param STRING COMMENT 'Company ID to retrieve all tickets for (e.g., "COMP00001"). Use NULL to retrieve tickets from ALL companies for executive reporting and cross-company analysis. Returns complete ticket history with interactions, resolutions, and metrics to enable next best action recommendations and pattern analysis.'
 )
 RETURNS TABLE(
   -- Ticket Core Info
@@ -180,7 +180,7 @@ RETURN
   LEFT JOIN ticket_interactions_agg int_stats ON t.ticket_id = int_stats.ticket_id
   LEFT JOIN related_tickets rt ON t.ticket_id = rt.ticket_id
   
-  WHERE t.company_id = company_id_param
+  WHERE (company_id_param IS NULL OR t.company_id = company_id_param)
   ORDER BY t.created_at DESC;
 
 
@@ -504,7 +504,7 @@ RETURN
 --              customer counts, and risk indicators
 -- ============================================================================
 CREATE OR REPLACE FUNCTION get_company_info(
-  company_id_param STRING COMMENT 'Company ID to retrieve complete information for (e.g., "COMP00001"). Returns comprehensive company profile including ticket statistics, customer counts, performance metrics (CSAT, NPS), risk indicators, and last activity date.'
+  company_id_param STRING COMMENT 'Company ID to retrieve complete information for (e.g., "COMP00001"). Use NULL to retrieve info for ALL companies for executive dashboards and aggregated reporting. Returns comprehensive company profile including ticket statistics, customer counts, performance metrics (CSAT, NPS), risk indicators, and last activity date.'
 )
 RETURNS TABLE(
   -- Company Information
@@ -681,7 +681,7 @@ RETURN
     GROUP BY company_id
   ) sentiment ON c.company_id = sentiment.company_id
   
-  WHERE c.company_id = company_id_param;
+  WHERE (company_id_param IS NULL OR c.company_id = company_id_param);
 
 
 -- ============================================================================
@@ -689,7 +689,7 @@ RETURN
 -- Description: Returns aggregated ticket statistics for a company
 -- ============================================================================
 CREATE OR REPLACE FUNCTION get_company_tickets_summary(
-  company_id_param STRING COMMENT 'Company ID to retrieve ticket summary for (e.g., "COMP00001"). Returns aggregated statistics including ticket counts by status, priority distribution, SLA metrics, average resolution times, and satisfaction scores.'
+  company_id_param STRING COMMENT 'Company ID to retrieve ticket summary for (e.g., "COMP00001"). Use NULL to retrieve summary for ALL companies for executive reporting and portfolio analysis. Returns aggregated statistics including ticket counts by status, priority distribution, SLA metrics, average resolution times, and satisfaction scores.'
 )
 RETURNS TABLE(
   company_id STRING,
@@ -716,7 +716,7 @@ RETURNS TABLE(
 )
 COMMENT 'Returns comprehensive aggregated statistics for a company including ticket counts by status (open, in progress, resolved, closed), priority distribution (critical, high), SLA breach count, escalation count, average resolution and response times, satisfaction scores (CSAT, NPS), total interactions, and date range of tickets. Use for company health checks, executive reporting, account reviews, and performance analysis.'
 RETURN
-  SELECT
+    SELECT
     co.company_id,
     co.company_name,
     co.segment AS company_segment,
@@ -737,7 +737,7 @@ RETURN
     AVG(t.nps_score) AS avg_nps_score,
     COALESCE(SUM(int_count.interaction_count), 0) AS total_interactions,
     MIN(t.created_at) AS first_ticket_date,
-    MAX(t.created_at) AS last_ticket_date
+      MAX(t.created_at) AS last_ticket_date
     
   FROM companies co
   LEFT JOIN tickets t ON co.company_id = t.company_id
@@ -747,7 +747,7 @@ RETURN
     GROUP BY ticket_id
   ) int_count ON t.ticket_id = int_count.ticket_id
   
-  WHERE co.company_id = company_id_param
+  WHERE (company_id_param IS NULL OR co.company_id = company_id_param)
   GROUP BY co.company_id, co.company_name, co.segment, co.company_size;
 
 
@@ -937,6 +937,10 @@ RETURN
 -- SELECT * FROM get_company_all_tickets('COMP00001');
 -- -- Use this to analyze patterns, solutions applied, and generate recommendations
 
+-- Example 2b: Get ALL tickets from ALL companies (for executive reporting)
+-- SELECT * FROM get_company_all_tickets(NULL);
+-- -- Use NULL to get tickets from all companies for portfolio analysis
+
 -- Example 3: Get complete ticket information
 -- SELECT * FROM get_ticket_by_id('TKT000001');
 
@@ -949,8 +953,16 @@ RETURN
 -- Example 6: Get complete company information
 -- SELECT * FROM get_company_info('COMP00001');
 
+-- Example 6b: Get info for ALL companies (for executive dashboard)
+-- SELECT * FROM get_company_info(NULL);
+-- -- Use NULL to get all companies at once for aggregated reporting
+
 -- Example 7: Get company ticket statistics summary
 -- SELECT * FROM get_company_tickets_summary('COMP00001');
+
+-- Example 7b: Get summary for ALL companies (for portfolio metrics)
+-- SELECT * FROM get_company_tickets_summary(NULL);
+-- -- Use NULL to get summary of all companies for portfolio-wide analysis
 
 -- Example 8: Get customer information and ticket history
 -- SELECT * FROM get_customer_info('CUST00001');
@@ -986,3 +998,35 @@ RETURN
 -- GROUP BY ticket_subcategory
 -- HAVING occurrence_count >= 3
 -- ORDER BY occurrence_count DESC;
+
+-- Example 13: Executive summary - ALL companies last week
+-- SELECT 
+--   COUNT(DISTINCT ticket_id) AS total_tickets_week,
+--   SUM(CASE WHEN ticket_priority = 'CRITICAL' THEN 1 ELSE 0 END) AS critical_tickets,
+--   SUM(CASE WHEN sla_breached THEN 1 ELSE 0 END) AS sla_violations,
+--   AVG(csat_score) AS avg_satisfaction,
+--   COUNT(DISTINCT CASE WHEN has_negative_sentiment THEN ticket_id END) AS negative_tickets
+-- FROM get_company_all_tickets(NULL)
+-- WHERE ticket_created_at >= CURRENT_TIMESTAMP() - INTERVAL 7 DAYS;
+
+-- Example 14: Portfolio health dashboard - ALL companies
+-- SELECT 
+--   COUNT(*) AS total_companies,
+--   SUM(CASE WHEN is_high_churn_risk THEN 1 ELSE 0 END) AS at_risk_companies,
+--   SUM(tickets_last_30d) AS total_tickets_30d,
+--   SUM(critical_tickets_30d) AS critical_tickets_30d,
+--   AVG(avg_csat_score) AS portfolio_avg_csat,
+--   SUM(sla_breached_tickets_30d) AS total_sla_breaches
+-- FROM get_company_info(NULL);
+
+-- Example 15: Top 5 problems across ALL companies
+-- SELECT 
+--   ticket_subcategory,
+--   COUNT(*) AS occurrence_count,
+--   AVG(resolution_time_hours) AS avg_resolution_hours,
+--   AVG(csat_score) AS avg_satisfaction
+-- FROM get_company_all_tickets(NULL)
+-- WHERE ticket_created_at >= CURRENT_TIMESTAMP() - INTERVAL 30 DAYS
+-- GROUP BY ticket_subcategory
+-- ORDER BY occurrence_count DESC
+-- LIMIT 5;

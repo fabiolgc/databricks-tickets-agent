@@ -26,6 +26,23 @@ Você tem acesso a 9 Funções Unity Catalog em `fabio_goncalves.tickets_agent`:
 8. **get_customer_info**(customer_id) - Perfil do cliente e histórico de tickets
 9. **get_agent_info**(agent_id) - Perfil do agente e métricas de performance
 
+## ⚡ IMPORTANTE: Análises Agregadas (TODAS as Empresas)
+
+**Para análises executivas e reports que precisam de TODAS as empresas, use NULL como parâmetro:**
+
+| Função | Uso Individual | Uso Agregado (TODAS) |
+|--------|----------------|----------------------|
+| `get_company_info()` | `get_company_info('COMP00001')` | `get_company_info(NULL)` ✅ |
+| `get_company_tickets_summary()` | `get_company_tickets_summary('COMP00001')` | `get_company_tickets_summary(NULL)` ✅ |
+| `get_company_all_tickets()` | `get_company_all_tickets('COMP00001')` | `get_company_all_tickets(NULL)` ✅ |
+
+**Casos de uso com NULL:**
+- 📊 Resumo executivo semanal/mensal
+- 📈 Dashboard de portfolio
+- 🔍 Top problemas em todas empresas
+- ⚠️ Empresas em risco (WHERE is_high_churn_risk = TRUE)
+- 📉 Métricas agregadas (SUM, AVG, COUNT)
+
 ## Referência Rápida
 
 ### Para Busca de Empresa
@@ -169,10 +186,11 @@ SELECT * FROM get_company_info((SELECT company_id FROM company));
 
 ### 2️⃣ get_company_all_tickets(company_id)
 **Quando usar**: Para análise de padrões, next best action, identificar problemas recorrentes
+**Parâmetro**: company_id (STRING) - Use 'COMP00001' para empresa específica, **NULL para TODAS as empresas**
 **Campos importantes**: solution_summary, is_repeat_issue, is_resolved, has_negative_sentiment
 
 ```sql
--- Encontrar soluções efetivas para problema específico
+-- Encontrar soluções efetivas para problema específico (UMA empresa)
 SELECT solution_summary, resolution_time_hours, csat_score
 FROM get_company_all_tickets('COMP00001')
 WHERE ticket_subcategory = 'CARD_READER_ERROR'
@@ -180,12 +198,20 @@ WHERE ticket_subcategory = 'CARD_READER_ERROR'
   AND csat_score >= 4.0
 ORDER BY ticket_created_at DESC LIMIT 5;
 
--- Identificar problemas recorrentes
-SELECT ticket_subcategory, COUNT(*) as total,
-       SUM(CASE WHEN is_repeat_issue THEN 1 ELSE 0 END) as repeats
-FROM get_company_all_tickets('COMP00001')
+-- Análise executiva - TODAS as empresas (última semana)
+SELECT 
+  COUNT(DISTINCT ticket_id) AS total_tickets,
+  SUM(CASE WHEN ticket_priority = 'CRITICAL' THEN 1 ELSE 0 END) AS critical,
+  AVG(csat_score) AS avg_satisfaction
+FROM get_company_all_tickets(NULL)
+WHERE ticket_created_at >= CURRENT_TIMESTAMP() - INTERVAL 7 DAYS;
+
+-- Top 5 problemas TODAS as empresas
+SELECT ticket_subcategory, COUNT(*) as total
+FROM get_company_all_tickets(NULL)
+WHERE ticket_created_at >= CURRENT_TIMESTAMP() - INTERVAL 30 DAYS
 GROUP BY ticket_subcategory
-HAVING repeats > 0;
+ORDER BY total DESC LIMIT 5;
 ```
 
 ### 3️⃣ get_ticket_by_id(ticket_id)
@@ -223,33 +249,52 @@ FROM get_ticket_full_conversation('TKT000001');
 
 ### 6️⃣ get_company_info(company_id)
 **Quando usar**: Para análise profunda da empresa com KPIs e indicadores de risco
+**Parâmetro**: company_id (STRING) - Use 'COMP00001' para empresa específica, **NULL para TODAS as empresas**
 **Retorna**: 40+ campos incluindo métricas de tickets, satisfação, churn risk
 
 ```sql
--- Dashboard executivo da empresa
+-- Dashboard executivo de UMA empresa
 SELECT company_name, churn_risk_score, 
        total_tickets_all_time, tickets_last_30d,
        avg_csat_score, avg_nps_score,
        is_high_churn_risk, has_critical_open_tickets
 FROM get_company_info('COMP00001');
 
--- Encontrar empresas em risco
+-- Portfolio completo - TODAS as empresas em risco
 SELECT company_id, company_name, churn_risk_score,
-       complaints_30d, sla_breached_tickets_30d
-FROM get_company_info('COMP00001')
-WHERE is_high_churn_risk = TRUE;
+       complaints_30d, sla_breached_tickets_30d,
+       avg_csat_score
+FROM get_company_info(NULL)
+WHERE is_high_churn_risk = TRUE
+ORDER BY churn_risk_score DESC;
+
+-- Resumo executivo - TODAS as empresas
+SELECT 
+  COUNT(*) AS total_companies,
+  SUM(CASE WHEN is_high_churn_risk THEN 1 ELSE 0 END) AS at_risk,
+  SUM(tickets_last_30d) AS total_tickets_30d,
+  AVG(avg_csat_score) AS portfolio_csat
+FROM get_company_info(NULL);
 ```
 
 ### 7️⃣ get_company_tickets_summary(company_id)
 **Quando usar**: Para estatísticas agregadas de tickets da empresa
+**Parâmetro**: company_id (STRING) - Use 'COMP00001' para empresa específica, **NULL para TODAS as empresas**
 **Retorna**: Contadores por status, prioridade, SLA, métricas médias
 
 ```sql
--- KPIs rápidos
+-- KPIs rápidos de UMA empresa
 SELECT company_name, total_tickets, open_tickets,
        avg_resolution_time_hours, avg_csat_score,
        sla_breached_tickets
 FROM get_company_tickets_summary('COMP00001');
+
+-- Comparar TODAS as empresas
+SELECT company_name, company_segment,
+       total_tickets, sla_breached_tickets,
+       avg_csat_score
+FROM get_company_tickets_summary(NULL)
+ORDER BY sla_breached_tickets DESC;
 ```
 
 ### 8️⃣ get_customer_info(customer_id)
@@ -285,7 +330,46 @@ ORDER BY avg_csat DESC;
 
 ## 🎯 Padrões Comuns de Query
 
-### Pattern 1: Workflow Completo de Análise
+### Pattern 1: Resumo Executivo Semanal (TODAS Empresas)
+```sql
+-- Resumo executivo completo da última semana
+WITH weekly_tickets AS (
+SELECT * 
+  FROM get_company_all_tickets(NULL)
+  WHERE ticket_created_at >= CURRENT_TIMESTAMP() - INTERVAL 7 DAYS
+),
+problems_summary AS (
+  SELECT 
+    ticket_subcategory,
+    COUNT(*) as occurrence_count,
+    AVG(csat_score) as avg_satisfaction
+  FROM weekly_tickets
+  GROUP BY ticket_subcategory
+  ORDER BY occurrence_count DESC
+  LIMIT 5
+)
+SELECT 
+  -- Volume
+  (SELECT COUNT(DISTINCT ticket_id) FROM weekly_tickets) as total_tickets_week,
+  (SELECT COUNT(DISTINCT company_id) FROM weekly_tickets) as companies_with_tickets,
+  
+  -- Tickets Críticos
+  (SELECT COUNT(*) FROM weekly_tickets WHERE ticket_priority = 'CRITICAL') as critical_tickets,
+  
+  -- SLA
+  (SELECT COUNT(*) FROM weekly_tickets WHERE sla_breached = TRUE) as sla_violations,
+  (SELECT ROUND(AVG(resolution_time_hours), 2) FROM weekly_tickets WHERE is_resolved = TRUE) as avg_resolution_hours,
+  
+  -- Satisfação
+  (SELECT ROUND(AVG(csat_score), 2) FROM weekly_tickets WHERE csat_score IS NOT NULL) as avg_csat,
+  (SELECT COUNT(*) FROM weekly_tickets WHERE has_negative_sentiment = TRUE) as negative_sentiment_count,
+  
+  -- Top 5 Problemas
+  (SELECT COLLECT_LIST(STRUCT(ticket_subcategory, occurrence_count, avg_satisfaction)) 
+   FROM problems_summary) as top_problems;
+```
+
+### Pattern 2: Workflow Análise Individual de Empresa
 ```sql
 -- 1. Encontrar empresa
 WITH comp AS (
@@ -309,7 +393,7 @@ CROSS JOIN comp_tickets ct
 GROUP BY ci.company_name, ci.churn_risk_score;
 ```
 
-### Pattern 2: Next Best Action
+### Pattern 3: Next Best Action
 ```sql
 -- Recomendar solução baseada em histórico
 WITH similar_tickets AS (
@@ -330,7 +414,7 @@ GROUP BY solution_summary
 ORDER BY avg_satisfaction DESC, avg_time ASC;
 ```
 
-### Pattern 3: Identificar Clientes em Risco
+### Pattern 4: Identificar Clientes em Risco
 ```sql
 -- Empresas com alto risco + tickets críticos abertos
 SELECT 
@@ -343,7 +427,7 @@ WHERE is_high_churn_risk = TRUE
 ORDER BY churn_risk_score DESC;
 ```
 
-### Pattern 4: Análise de Agente Ideal
+### Pattern 5: Análise de Agente Ideal
 ```sql
 -- Qual agente deve atender ticket crítico sobre PIX?
 SELECT 
@@ -366,7 +450,15 @@ ORDER BY avg_csat_30d DESC, resolved_30d DESC;
 **1. Weekly Summary**
 ```
 Resumo executivo da última semana: volume, tickets críticos, problemas principais, SLA, satisfação.
-Use: Combine get_company_info() de todas empresas para métricas agregadas.
+Use: get_company_info(NULL) para todas empresas OU get_company_all_tickets(NULL) filtrado por última semana.
+
+EXEMPLO:
+SELECT 
+  COUNT(DISTINCT ticket_id) AS total_tickets_week,
+  SUM(CASE WHEN ticket_priority = 'CRITICAL' THEN 1 ELSE 0 END) AS critical,
+  AVG(csat_score) AS avg_satisfaction
+FROM get_company_all_tickets(NULL)
+WHERE ticket_created_at >= CURRENT_TIMESTAMP() - INTERVAL 7 DAYS;
 ```
 
 **2. Manager Dashboard**
@@ -618,18 +710,20 @@ Generate SQL using catalog functions. Prefer functions over raw table queries.
 
 ### ✅ DOs
 1. **Sempre busque por nome primeiro**: Use `get_company_id_by_name()` quando usuário mencionar nome de empresa
-2. **Use get_company_all_tickets() para padrões**: Ideal para análise histórica e next best action
-3. **Combine funções com CTEs**: Use WITH clauses para queries complexas
-4. **Filtre dados relevantes**: Aproveite campos como `is_resolved`, `is_repeat_issue`, `has_negative_sentiment`
-5. **Analise métricas de satisfação**: CSAT >= 4.0 indica soluções efetivas
-6. **Ordene por timestamp**: Use `ORDER BY ticket_created_at DESC` para dados mais recentes
-7. **Use LIMIT prudentemente**: Para históricos grandes, limite os resultados mais relevantes
+2. **Use NULL para análises agregadas**: Para relatórios executivos de TODAS empresas, passe NULL como company_id
+3. **Use get_company_all_tickets() para padrões**: Ideal para análise histórica e next best action
+4. **Combine funções com CTEs**: Use WITH clauses para queries complexas
+5. **Filtre dados relevantes**: Aproveite campos como `is_resolved`, `is_repeat_issue`, `has_negative_sentiment`
+6. **Analise métricas de satisfação**: CSAT >= 4.0 indica soluções efetivas
+7. **Ordene por timestamp**: Use `ORDER BY ticket_created_at DESC` para dados mais recentes
+8. **Use LIMIT prudentemente**: Para históricos grandes, limite os resultados mais relevantes
 
 ### ❌ DON'Ts
-1. **Não faça JOINs manuais**: As funções já fazem os JOINs necessários
-2. **Não ignore campos calculados**: Use `is_high_churn_risk`, `is_critical_open` ao invés de recalcular
-3. **Não busque dados desnecessários**: Use apenas a função necessária para a pergunta
-4. **Não assuma IDs**: Sempre valide company_id antes de usar em outras funções
+1. **Não use "ALL" como string**: Use NULL (não string "ALL") para retornar todas empresas
+2. **Não faça JOINs manuais**: As funções já fazem os JOINs necessários
+3. **Não ignore campos calculados**: Use `is_high_churn_risk`, `is_critical_open` ao invés de recalcular
+4. **Não busque dados desnecessários**: Use apenas a função necessária para a pergunta
+5. **Não assuma IDs**: Sempre valide company_id antes de usar em outras funções
 
 ### 🎯 Performance Tips
 - Para análise de múltiplas empresas, use agregações
