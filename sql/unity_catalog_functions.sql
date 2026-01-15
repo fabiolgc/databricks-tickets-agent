@@ -198,8 +198,7 @@ RETURNS TABLE(
   message STRING,
   interaction_type STRING,
   channel STRING,
-  attachments ARRAY<STRING>,
-  duration_minutes INT
+  attachments ARRAY<STRING>
 )
 COMMENT 'Returns the complete interaction/conversation history for a specific ticket. Each row is one message with timestamp, author info (customer/agent/system), message content, and channel. Results ordered chronologically. Use this to view the full communication thread, analyze response patterns, or feed conversations to AI models.'
 RETURN
@@ -224,8 +223,7 @@ RETURN
     ti.message,
     ti.interaction_type,
     ti.channel,
-    ti.attachments,
-    ti.duration_minutes
+    ti.attachments
     
   FROM ticket_interactions ti
   INNER JOIN tickets t ON ti.ticket_id = t.ticket_id
@@ -360,7 +358,7 @@ RETURNS TABLE(
   -- Company Information
   company_id STRING,
   company_name STRING,
-  tax_id STRING,
+  cnpj STRING,
   segment STRING,
   company_size STRING,
   contract_start_date DATE,
@@ -410,7 +408,7 @@ RETURN
     -- Company Information
     c.company_id,
     c.company_name,
-    c.tax_id,
+    c.cnpj,
     c.segment,
     c.company_size,
     c.contract_start_date,
