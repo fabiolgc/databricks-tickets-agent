@@ -1,10 +1,10 @@
 # Databricks notebook source
 # MAGIC %md
 # MAGIC # Customer Support Tickets Agent - Complete Setup and Analysis
-# MAGIC 
+# MAGIC
 # MAGIC ## 🎯 Objective
 # MAGIC This notebook provides a complete end-to-end solution for analyzing customer support tickets using Databricks and GenAI.
-# MAGIC 
+# MAGIC
 # MAGIC ## 📋 What this notebook does:
 # MAGIC 1. Creates Delta tables for tickets data
 # MAGIC 2. Loads data from CSV files
@@ -12,11 +12,11 @@
 # MAGIC 4. Performs executive analysis
 # MAGIC 5. Identifies churn risks
 # MAGIC 6. Generates AI-powered insights
-# MAGIC 
+# MAGIC
 # MAGIC ## ⚙️ Prerequisites:
 # MAGIC - CSV files uploaded to DBFS at `/FileStore/tickets/`
 # MAGIC - Databricks Runtime with ML or above
-# MAGIC 
+# MAGIC
 # MAGIC ---
 
 # COMMAND ----------
@@ -26,11 +26,15 @@
 
 # COMMAND ----------
 
+# DBTITLE 1,Cell 3
 # Configuration parameters
-CSV_BASE_PATH = "/FileStore/tickets"  # Update this path if your CSVs are in a different location
-CATALOG_NAME = "hive_metastore"  # Change to your Unity Catalog name if using UC
-SCHEMA_NAME = "default"  # Change to your schema name
+CSV_BASE_PATH = "file:/Workspace/Users/fabio.goncalves@databricks.com/databricks-tickets-agent/data/pt-br"  # Update this path if your CSVs are in a different location
+CATALOG_NAME = "fabio_goncalves"  # Change to your Unity Catalog name if using UC
+SCHEMA_NAME = "tickets_agent"  # Change to your schema name
 TABLE_PREFIX = ""  # Optional prefix for table names
+VOLUME = "tickets_csv_data" 
+VOLUME_PATH = f"/Volumes/{CATALOG_NAME}/{SCHEMA_NAME}/{TABLE_PREFIX}{VOLUME}" 
+VOLUME_NAME = f"{CATALOG_NAME}.{SCHEMA_NAME}.{TABLE_PREFIX}{VOLUME}"
 
 # Full table names
 COMPANIES_TABLE = f"{CATALOG_NAME}.{SCHEMA_NAME}.{TABLE_PREFIX}companies"
@@ -43,6 +47,8 @@ print(f"✓ Configuration loaded")
 print(f"  CSV Path: {CSV_BASE_PATH}")
 print(f"  Catalog: {CATALOG_NAME}")
 print(f"  Schema: {SCHEMA_NAME}")
+print(f"  Volume: {VOLUME_NAME}")
+print(f"  Volume_path: {VOLUME_PATH}")
 
 # COMMAND ----------
 
@@ -60,8 +66,10 @@ print(f"✓ Schema {SCHEMA_NAME} is ready")
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 🏗️ Step 3: Create Delta Tables
-# MAGIC 
+# MAGIC ## 🏗️ Step 3: Create Delta Tables and Volume
+# MAGIC
+# MAGIC Creating Volume:
+# MAGIC - **tickets_csv_data**: csv data files
 # MAGIC Creating 5 related tables:
 # MAGIC - **companies**: Customer companies using payment processing services
 # MAGIC - **customers**: Individual users who open support tickets
@@ -72,6 +80,7 @@ print(f"✓ Schema {SCHEMA_NAME} is ready")
 # COMMAND ----------
 
 # Drop existing tables (optional - comment out if you want to preserve existing data)
+spark.sql(f"DROP VOLUME {VOLUME_NAME}")
 spark.sql(f"DROP TABLE IF EXISTS {INTERACTIONS_TABLE}")
 spark.sql(f"DROP TABLE IF EXISTS {TICKETS_TABLE}")
 spark.sql(f"DROP TABLE IF EXISTS {CUSTOMERS_TABLE}")
@@ -79,6 +88,16 @@ spark.sql(f"DROP TABLE IF EXISTS {AGENTS_TABLE}")
 spark.sql(f"DROP TABLE IF EXISTS {COMPANIES_TABLE}")
 
 print("✓ Existing tables dropped (if any)")
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ### Create Data Volume 
+
+# COMMAND ----------
+
+spark.sql(f"""
+CREATE VOLUME {VOLUME_NAME}""")
 
 # COMMAND ----------
 
@@ -245,7 +264,7 @@ print(f"✓ Table created: {INTERACTIONS_TABLE}")
 
 # MAGIC %md
 # MAGIC ## 📥 Step 4: Load Data from CSV Files
-# MAGIC 
+# MAGIC
 # MAGIC Loading data in the correct order to respect foreign key relationships:
 # MAGIC 1. Companies (parent)
 # MAGIC 2. Agents (parent)
@@ -255,13 +274,30 @@ print(f"✓ Table created: {INTERACTIONS_TABLE}")
 
 # COMMAND ----------
 
+# DBTITLE 1,Cell 21
+# Copia todos os arquivos da pasta do workspace "data/pt-br" para o volume VOLUME_NAME
+src_path = "file:/Workspace/Users/fabio.goncalves@databricks.com/databricks-tickets-agent/data/pt-br/"
+dst_path = f"/Volumes/{VOLUME_NAME.replace('.', '/')}/"
+
+files = dbutils.fs.ls(src_path)
+for file in files:
+    dbutils.fs.cp(file.path, dst_path + file.name)
+print(f"✓ Arquivos copiados de {src_path} para {dst_path}")
+
+# COMMAND ----------
+
+files = dbutils.fs.ls(f"{VOLUME_PATH}")
+display(files)
+
+# COMMAND ----------
+
 # MAGIC %md
 # MAGIC ### Load COMPANIES
 
 # COMMAND ----------
 
+# DBTITLE 1,Cell 20
 from pyspark.sql.types import *
-from pyspark.sql import functions as F
 
 # Define schema for companies
 companies_schema = StructType([
@@ -277,19 +313,17 @@ companies_schema = StructType([
     StructField("created_at", TimestampType(), True)
 ])
 
-# Load and insert data
 df_companies = (spark.read
     .option("header", "true")
     .option("multiLine", "true")
     .option("escape", '"')
     .schema(companies_schema)
-    .csv(f"{CSV_BASE_PATH}/companies.csv")
-)
+    .csv(f"{CSV_BASE_PATH}/companies.csv"))
 
-df_companies.write.mode("append").saveAsTable(f"{COMPANIES_TABLE}")
+df_companies.write.mode("overwrite").saveAsTable(f"{COMPANIES_TABLE}")
+display(df_companies)
 
-count = df_companies.count()
-print(f"✓ Loaded {count} companies")
+display(df_companies)
 
 # COMMAND ----------
 
@@ -320,10 +354,8 @@ df_agents = (spark.read
     .csv(f"{CSV_BASE_PATH}/agents.csv")
 )
 
-df_agents.write.mode("append").saveAsTable(f"{AGENTS_TABLE}")
-
-count = df_agents.count()
-print(f"✓ Loaded {count} agents")
+df_agents.write.mode("overwrite").saveAsTable(f"{AGENTS_TABLE}")
+display(df_agents)
 
 # COMMAND ----------
 
@@ -353,10 +385,10 @@ df_customers = (spark.read
     .csv(f"{CSV_BASE_PATH}/customers.csv")
 )
 
-df_customers.write.mode("append").saveAsTable(f"{CUSTOMERS_TABLE}")
+df_customers.write.mode("overwrite").saveAsTable(f"{CUSTOMERS_TABLE}")
 
-count = df_customers.count()
-print(f"✓ Loaded {count} customers")
+display(df_customers)
+
 
 # COMMAND ----------
 
@@ -411,10 +443,9 @@ df_tickets_transformed = (df_tickets
     .withColumn("agent_id", F.when(F.col("agent_id") == "", None).otherwise(F.col("agent_id")))
 )
 
-df_tickets_transformed.write.mode("append").saveAsTable(f"{TICKETS_TABLE}")
+df_tickets_transformed.write.mode("overwrite").saveAsTable(f"{TICKETS_TABLE}")
 
-count = df_tickets_transformed.count()
-print(f"✓ Loaded {count} tickets")
+display(df_tickets_transformed)
 
 # COMMAND ----------
 
@@ -451,10 +482,9 @@ df_interactions_transformed = (df_interactions
                                      F.split(F.col("attachments"), "\\|")).otherwise(F.array()))
 )
 
-df_interactions_transformed.write.mode("append").saveAsTable(f"{INTERACTIONS_TABLE}")
+df_interactions_transformed.write.mode("overwrite").saveAsTable(f"{INTERACTIONS_TABLE}")
 
-count = df_interactions_transformed.count()
-print(f"✓ Loaded {count} ticket interactions")
+display(df_interactions_transformed)
 
 # COMMAND ----------
 
@@ -487,7 +517,7 @@ print("="*70)
 
 # MAGIC %md
 # MAGIC ## 🚀 Step 6: Optimize Tables
-# MAGIC 
+# MAGIC
 # MAGIC Apply Z-ordering and collect statistics for better query performance
 
 # COMMAND ----------
@@ -538,7 +568,7 @@ print("\n✅ All statistics collected")
 
 # MAGIC %md
 # MAGIC ## 📈 Analysis 1: Weekly Executive Summary
-# MAGIC 
+# MAGIC
 # MAGIC **Business Question:** "What's happening this week?"
 
 # COMMAND ----------
@@ -597,6 +627,8 @@ display(category_summary.limit(10))
 
 # COMMAND ----------
 
+from pyspark.sql.window import Window
+
 # Status distribution
 status_dist = recent_tickets.groupBy("status").agg(
     F.count("*").alias("count")
@@ -611,7 +643,7 @@ display(status_dist)
 
 # MAGIC %md
 # MAGIC ## ⚠️ Analysis 3: Churn Risk Detection
-# MAGIC 
+# MAGIC
 # MAGIC **Business Question:** "Which customers are at risk of leaving?"
 
 # COMMAND ----------
@@ -761,11 +793,11 @@ agent_performance = (
         .filter(F.col("created_at") >= F.date_sub(F.current_date(), 30))
         .groupBy("agent_id").agg(
             F.count("*").alias("tickets_handled"),
-            F.sum(F.when(F.col("status").isin("RESOLVED", "CLOSED"), 1).otherwise(0)).alias("tickets_resolved"),
+            F.sum(F.when(F.col("status").isin("RESOLVED", "CLOSED"), 1).otherwise(0)).alias("tickets_resolved_30d"),
             F.round(F.avg("resolution_time_hours"), 2).alias("avg_resolution_hours"),
             F.round(F.avg("first_response_time_minutes"), 2).alias("avg_first_response_min"),
-            F.round(F.avg("csat_score"), 2).alias("avg_csat"),
-            F.round(F.avg("nps_score"), 1).alias("avg_nps"),
+            F.round(F.avg("csat_score"), 2).alias("avg_csat_30d"),
+            F.round(F.avg("nps_score"), 1).alias("avg_nps_30d"),
             F.sum(F.when(F.col("sla_breached") == True, 1).otherwise(0)).alias("sla_breaches"),
             F.sum(F.when(F.col("escalated") == True, 1).otherwise(0)).alias("escalations")
         ),
@@ -777,17 +809,17 @@ agent_performance = (
         "team",
         "specialization",
         "tickets_handled",
-        "tickets_resolved",
+        "tickets_resolved_30d",
         "avg_resolution_hours",
         "avg_first_response_min",
-        "avg_csat",
-        "avg_nps",
+        "avg_csat_30d",
+        "avg_nps_30d",
         "sla_breaches",
         "escalations"
     )
     .withColumn(
         "resolution_rate_pct",
-        F.round(F.col("tickets_resolved") * 100.0 / F.col("tickets_handled"), 2)
+        F.round(F.col("tickets_resolved_30d") * 100.0 / F.col("tickets_handled"), 2)
     )
     .filter(F.col("tickets_handled").isNotNull())
     .orderBy(F.desc("tickets_handled"))
@@ -829,6 +861,45 @@ display(team_performance)
 
 # MAGIC %md
 # MAGIC ## 😊 Analysis 6: Sentiment and Satisfaction
+
+# COMMAND ----------
+
+# Unifica o assunto do ticket e todas as mensagens das interações, e analisa o sentimento usando ai_analyze_sentiment
+from pyspark.sql.functions import col, concat_ws, collect_list, lit, coalesce, trim
+
+# Unir todas as mensagens das interações por ticket_id
+interactions_text = (
+    interactions_df
+    .groupBy("ticket_id")
+    .agg(concat_ws(" ", collect_list(trim(col("message")))).alias("all_messages"))
+)
+
+# Unir assunto do ticket com as mensagens das interações
+ticket_text_df = (
+    tickets_df
+    .select("ticket_id", "subject")
+    .join(interactions_text, "ticket_id", "left")
+    .withColumn(
+        "full_text",
+        concat_ws(" ", coalesce(col("subject"), lit("")), coalesce(col("all_messages"), lit("")))
+    )
+)
+
+# Analisar sentimento usando ai_analyze_sentiment (via SQL)
+ticket_text_df.createOrReplaceTempView("vw_ticket_text")
+
+sentiment_trends = spark.sql("""
+    SELECT
+        ticket_id,
+        subject,
+        all_messages,
+        full_text,
+        ai_analyze_sentiment(full_text) AS sentiment
+    FROM vw_ticket_text
+""")
+
+print("Sentimento dos tickets (assunto + interações):")
+display(sentiment_trends)
 
 # COMMAND ----------
 
@@ -952,7 +1023,7 @@ display(channel_performance)
 
 # MAGIC %md
 # MAGIC ## 🔍 Analysis 8: Next Best Action Recommendations
-# MAGIC 
+# MAGIC
 # MAGIC Find similar resolved tickets to recommend solutions
 
 # COMMAND ----------
@@ -1125,9 +1196,9 @@ print("\n✅ All analysis results saved")
 # MAGIC ---
 # MAGIC # 🎉 Setup Complete!
 # MAGIC ---
-# MAGIC 
+# MAGIC
 # MAGIC ## ✅ What was accomplished:
-# MAGIC 
+# MAGIC
 # MAGIC 1. ✅ Created 5 Delta tables with proper schemas
 # MAGIC 2. ✅ Loaded all CSV data (3,574 records)
 # MAGIC 3. ✅ Optimized tables with Z-ordering
@@ -1141,23 +1212,23 @@ print("\n✅ All analysis results saved")
 # MAGIC    - Channel performance
 # MAGIC    - Next best action recommendations
 # MAGIC 5. ✅ Saved analysis results for reuse
-# MAGIC 
+# MAGIC
 # MAGIC ## 🚀 Next Steps:
-# MAGIC 
+# MAGIC
 # MAGIC 1. **Create Dashboards**: Use Databricks SQL to visualize these analyses
 # MAGIC 2. **Set up Genie**: Create a Genie Space for natural language queries
 # MAGIC 3. **Implement AI Functions**: Use ai_summarize(), ai_classify() for automation
 # MAGIC 4. **Build Alerts**: Set up automated alerts for critical tickets
 # MAGIC 5. **Deploy ML Models**: Create churn prediction models
-# MAGIC 
+# MAGIC
 # MAGIC ## 📚 Resources:
-# MAGIC 
+# MAGIC
 # MAGIC - **analysis_queries.sql**: 50+ ready-to-use SQL queries
 # MAGIC - **genie_example_prompts.md**: Example questions for Genie
 # MAGIC - **README.md**: Complete project documentation
-# MAGIC 
+# MAGIC
 # MAGIC ---
-# MAGIC 
+# MAGIC
 # MAGIC **Ready for demonstration!** 🎯
 
 # COMMAND ----------
@@ -1197,5 +1268,5 @@ print("\n✅ All analysis results saved")
 # MAGIC %md
 # MAGIC ---
 # MAGIC *Notebook created for Databricks GenAI Demo - Customer Support Tickets Agent*
-# MAGIC 
+# MAGIC
 # MAGIC *Version: 1.0 | Date: January 2026*

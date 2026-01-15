@@ -1,19 +1,33 @@
 -- Databricks notebook source
 -- MAGIC %md
 -- MAGIC # 🚀 Quick Demo - Customer Support Tickets Analysis
--- MAGIC 
+-- MAGIC
 -- MAGIC ## Fast 5-minute demonstration notebook
--- MAGIC 
+-- MAGIC
 -- MAGIC **Prerequisites:** 
 -- MAGIC - Tables already created and loaded
 -- MAGIC - Run the `setup_and_analysis_notebook` first if tables don't exist
--- MAGIC 
+-- MAGIC
 -- MAGIC **Use this notebook for:**
 -- MAGIC - Quick demonstrations
 -- MAGIC - Executive presentations
 -- MAGIC - Testing Genie capabilities
--- MAGIC 
+-- MAGIC
 -- MAGIC ---
+
+-- COMMAND ----------
+
+-- MAGIC %md
+-- MAGIC ## ⚙️ Configuration
+-- MAGIC
+-- MAGIC Set your catalog and schema names below:
+
+-- COMMAND ----------
+
+-- DBTITLE 1,Set Default Catalog and Schema
+-- Set default catalog and schema for all queries
+USE CATALOG fabio_goncalves;
+USE SCHEMA tickets_agent;
 
 -- COMMAND ----------
 
@@ -22,6 +36,7 @@
 
 -- COMMAND ----------
 
+-- DBTITLE 1,Untitled
 -- Quick data validation
 SELECT 
     'companies' AS table_name, 
@@ -63,6 +78,7 @@ FROM ticket_interactions
 
 -- COMMAND ----------
 
+-- DBTITLE 1,Cell 4
 -- Sample tickets view
 SELECT 
     t.ticket_id,
@@ -88,6 +104,7 @@ LIMIT 10
 
 -- COMMAND ----------
 
+-- DBTITLE 1,Cell 6
 -- Weekly KPIs
 SELECT 
     COUNT(*) AS total_tickets,
@@ -104,6 +121,7 @@ WHERE created_at >= CURRENT_DATE - INTERVAL 7 DAYS
 
 -- COMMAND ----------
 
+-- DBTITLE 1,Cell 7
 -- Ticket distribution by status
 SELECT 
     status,
@@ -121,6 +139,7 @@ ORDER BY ticket_count DESC
 
 -- COMMAND ----------
 
+-- DBTITLE 1,Cell 9
 -- Top 10 issues
 SELECT 
     category,
@@ -129,7 +148,7 @@ SELECT
     ROUND(COUNT(*) * 100.0 / SUM(COUNT(*)) OVER(), 1) AS percentage,
     ROUND(AVG(CASE WHEN status IN ('RESOLVED', 'CLOSED') THEN resolution_time_hours END), 2) AS avg_resolution_hours,
     COUNT(CASE WHEN priority IN ('HIGH', 'CRITICAL') THEN 1 END) AS urgent_count
-FROM tickets
+FROM ${CATALOG}.${SCHEMA}.tickets
 WHERE created_at >= CURRENT_DATE - INTERVAL 7 DAYS
 GROUP BY category, subcategory
 ORDER BY ticket_count DESC
@@ -137,6 +156,7 @@ LIMIT 10
 
 -- COMMAND ----------
 
+-- DBTITLE 1,Cell 10
 -- Issues by category with sentiment
 SELECT 
     category,
@@ -158,6 +178,7 @@ ORDER BY total_tickets DESC
 
 -- COMMAND ----------
 
+-- DBTITLE 1,Cell 12
 -- High risk companies
 SELECT 
     c.company_name,
@@ -182,6 +203,7 @@ LIMIT 20
 
 -- COMMAND ----------
 
+-- DBTITLE 1,Cell 13
 -- Churn risk with recommended actions
 SELECT 
     company_name,
@@ -222,6 +244,7 @@ ORDER BY churn_risk_score DESC
 
 -- COMMAND ----------
 
+-- DBTITLE 1,Cell 15
 -- SLA compliance by priority
 SELECT 
     priority,
@@ -250,6 +273,7 @@ ORDER BY
 
 -- COMMAND ----------
 
+-- DBTITLE 1,Cell 16
 -- Recent SLA breaches requiring attention
 SELECT 
     t.ticket_id,
@@ -284,6 +308,7 @@ LIMIT 20
 
 -- COMMAND ----------
 
+-- DBTITLE 1,Cell 18
 -- Agent performance (last 30 days)
 SELECT 
     a.agent_name,
@@ -307,6 +332,7 @@ ORDER BY tickets_handled DESC
 
 -- COMMAND ----------
 
+-- DBTITLE 1,Cell 19
 -- Team comparison
 SELECT 
     a.team,
@@ -331,6 +357,7 @@ ORDER BY total_tickets DESC
 
 -- COMMAND ----------
 
+-- DBTITLE 1,Cell 21
 -- NPS breakdown
 SELECT 
     CASE 
@@ -340,7 +367,7 @@ SELECT
     END AS nps_category,
     COUNT(*) AS response_count,
     ROUND(COUNT(*) * 100.0 / SUM(COUNT(*)) OVER(), 1) AS percentage
-FROM tickets
+FROM ${CATALOG}.${SCHEMA}.tickets
 WHERE nps_score IS NOT NULL
     AND created_at >= CURRENT_DATE - INTERVAL 30 DAYS
 GROUP BY 
@@ -358,6 +385,7 @@ ORDER BY
 
 -- COMMAND ----------
 
+-- DBTITLE 1,Cell 22
 -- CSAT trends by category
 SELECT 
     category,
@@ -373,6 +401,7 @@ ORDER BY avg_csat DESC
 
 -- COMMAND ----------
 
+-- DBTITLE 1,Cell 25
 -- Sentiment distribution
 SELECT 
     sentiment,
@@ -396,6 +425,7 @@ ORDER BY
 
 -- COMMAND ----------
 
+-- DBTITLE 1,Cell 27
 -- Channel performance comparison
 SELECT 
     channel,
@@ -416,6 +446,7 @@ ORDER BY total_tickets DESC
 
 -- COMMAND ----------
 
+-- DBTITLE 1,Cell 29
 -- Open critical and high priority tickets
 SELECT 
     t.ticket_id,
@@ -446,6 +477,7 @@ ORDER BY
 
 -- COMMAND ----------
 
+-- DBTITLE 1,Cell 31
 -- Example: View complete ticket with conversation
 -- Change ticket_id to investigate specific tickets
 
@@ -468,13 +500,14 @@ WHERE t.ticket_id = 'TKT000001'  -- Change this ID
 
 -- COMMAND ----------
 
+-- DBTITLE 1,Cell 32
 -- View conversation for a specific ticket
 SELECT 
     interaction_timestamp,
     author_type,
     author_name,
     message
-FROM ticket_interactions
+FROM ${CATALOG}.${SCHEMA}.ticket_interactions
 WHERE ticket_id = 'TKT000001'  -- Change this ID
 ORDER BY interaction_timestamp
 
@@ -485,6 +518,7 @@ ORDER BY interaction_timestamp
 
 -- COMMAND ----------
 
+-- DBTITLE 1,Cell 34
 -- Tickets by business segment
 SELECT 
     c.segment,
@@ -506,6 +540,7 @@ ORDER BY total_tickets DESC
 
 -- COMMAND ----------
 
+-- DBTITLE 1,Cell 35
 -- Time-based patterns - tickets by day of week
 SELECT 
     DAYOFWEEK(created_at) AS day_of_week,
@@ -529,11 +564,12 @@ ORDER BY day_of_week
 
 -- MAGIC %md
 -- MAGIC ## 📋 12. Executive Summary Query
--- MAGIC 
+-- MAGIC
 -- MAGIC Single query for executive dashboard
 
 -- COMMAND ----------
 
+-- DBTITLE 1,Cell 37
 WITH summary_stats AS (
     SELECT 
         COUNT(*) AS total_tickets,
@@ -574,37 +610,37 @@ CROSS JOIN top_category t
 -- MAGIC ---
 -- MAGIC # ✅ Demo Complete!
 -- MAGIC ---
--- MAGIC 
+-- MAGIC
 -- MAGIC ## 💡 Key Takeaways:
--- MAGIC 
+-- MAGIC
 -- MAGIC 1. **Real-time Insights**: All metrics updated automatically
 -- MAGIC 2. **Churn Prevention**: Proactive identification of at-risk customers
 -- MAGIC 3. **Performance Tracking**: SLA compliance and team metrics
 -- MAGIC 4. **Customer Satisfaction**: NPS/CSAT trends and sentiment analysis
 -- MAGIC 5. **Actionable Intelligence**: Prioritized recommendations
--- MAGIC 
+-- MAGIC
 -- MAGIC ## 🚀 Next Steps:
--- MAGIC 
+-- MAGIC
 -- MAGIC - **Genie**: Try asking these queries in natural language
 -- MAGIC - **Dashboards**: Create visualizations from these queries
 -- MAGIC - **Alerts**: Set up automated notifications
 -- MAGIC - **AI Functions**: Add summarization and classification
--- MAGIC 
+-- MAGIC
 -- MAGIC ---
--- MAGIC 
+-- MAGIC
 -- MAGIC **Questions to try in Genie:**
 -- MAGIC - "Mostre empresas em risco de churn"
 -- MAGIC - "Quais são os principais problemas esta semana?"
 -- MAGIC - "Como está a performance do time de suporte?"
 -- MAGIC - "Quantos tickets violaram SLA?"
--- MAGIC 
+-- MAGIC
 -- MAGIC ---
 
 -- COMMAND ----------
 
 -- MAGIC %md
 -- MAGIC ## 🎯 Bonus: Sample Genie-style Queries
--- MAGIC 
+-- MAGIC
 -- MAGIC These queries demonstrate what Genie can answer:
 
 -- COMMAND ----------
@@ -663,7 +699,7 @@ WHERE priority = 'CRITICAL'
 -- MAGIC %md
 -- MAGIC ---
 -- MAGIC *Quick Demo Notebook - Customer Support Tickets Analysis*
--- MAGIC 
+-- MAGIC
 -- MAGIC *Perfect for 5-minute demonstrations and executive presentations*
--- MAGIC 
+-- MAGIC
 -- MAGIC *Version: 1.0 | Date: January 2026*
