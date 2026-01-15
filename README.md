@@ -21,18 +21,27 @@ databricks-tickets-agent/
 │
 ├── notebooks/               # Databricks notebooks
 │   ├── setup_and_analysis_notebook.py  # Complete setup + analysis
-│   └── genai_agent_example.py          # GenAI examples
+│   ├── genai_agent_example.py          # GenAI examples
+│   └── ai_agent_implementation.py      # AI Agent implementation
+│
+├── prompts/                 # AI Agent prompts (PT & EN)
+│   ├── ai_agent_prompts_pt.md          # AI Agent prompts (Portuguese)
+│   ├── ai_agent_prompts_en.md          # AI Agent prompts (English)
+│   ├── genie_example_prompts_pt.md     # Genie examples (Portuguese)
+│   └── genie_example_prompts_en.md     # Genie examples (English)
 │
 ├── scripts/                 # Python utility scripts
 │   ├── generate_data.py    # Synthetic data generator
 │   ├── validate_data.py    # Data quality validation
 │   └── requirements.txt    # Python dependencies
 │
-└── docs/                    # Documentation (Portuguese)
-    ├── README_pt.md         # Complete documentation
-    ├── QUICKSTART_pt.md     # 5-minute quick start
-    ├── PROJECT_SUMMARY_pt.md # Executive summary
-    └── genie_example_prompts_pt.md # Genie prompt examples
+└── docs/                    # Documentation (PT & EN)
+    ├── README_pt.md         # Complete documentation (Portuguese)
+    ├── README_en.md         # Complete documentation (English)
+    ├── QUICKSTART_pt.md     # 5-minute quick start (Portuguese)
+    ├── QUICKSTART_en.md     # 5-minute quick start (English)
+    ├── PROJECT_SUMMARY_pt.md # Executive summary (Portuguese)
+    └── PROJECT_SUMMARY_en.md # Executive summary (English)
 
 ```
 
