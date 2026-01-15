@@ -23,7 +23,8 @@ from pyspark.sql.window import Window
 from datetime import datetime, timedelta
 
 # Configuration
-SCHEMA_NAME = "default"  # Change to your schema name
+CATALOG_NAME = "fabio_goncalves"
+SCHEMA_NAME = "tickets_agent"  # Change to your schema name
 CURRENT_DATE = datetime.now()
 DAYS_BACK = 7
 
@@ -38,11 +39,11 @@ print(f"Current Date: {CURRENT_DATE.strftime('%Y-%m-%d')}")
 # COMMAND ----------
 
 # Load tables
-tickets_df = spark.table(f"{SCHEMA_NAME}.tickets")
-companies_df = spark.table(f"{SCHEMA_NAME}.companies")
-customers_df = spark.table(f"{SCHEMA_NAME}.customers")
-agents_df = spark.table(f"{SCHEMA_NAME}.agents")
-interactions_df = spark.table(f"{SCHEMA_NAME}.ticket_interactions")
+tickets_df = spark.table(f"{CATALOG_NAME}.{SCHEMA_NAME}.tickets")
+companies_df = spark.table(f"{CATALOG_NAME}.{SCHEMA_NAME}.companies")
+customers_df = spark.table(f"{CATALOG_NAME}.{SCHEMA_NAME}.customers")
+agents_df = spark.table(f"{CATALOG_NAME}.{SCHEMA_NAME}.agents")
+interactions_df = spark.table(f"{CATALOG_NAME}.{SCHEMA_NAME}.ticket_interactions")
 
 # Filter for recent tickets
 recent_tickets = tickets_df.filter(
@@ -125,23 +126,23 @@ display(sample_tickets.select("ticket_id", "subject", "category", "interaction_c
 # MAGIC -- Example: Summarize ticket conversations using AI
 # MAGIC -- This is a SQL example showing how to use ai_summarize()
 # MAGIC
-# MAGIC -- SELECT 
-# MAGIC --     ticket_id,
-# MAGIC --     subject,
-# MAGIC --     category,
-# MAGIC --     ai_summarize(full_conversation) as ai_summary
-# MAGIC -- FROM (
-# MAGIC --     SELECT 
-# MAGIC --         t.ticket_id,
-# MAGIC --         t.subject,
-# MAGIC --         t.category,
-# MAGIC --         CONCAT_WS('\n', COLLECT_LIST(ti.message)) as full_conversation
-# MAGIC --     FROM tickets t
-# MAGIC --     JOIN ticket_interactions ti ON t.ticket_id = ti.ticket_id
-# MAGIC --     WHERE t.created_at >= CURRENT_DATE - INTERVAL 7 DAYS
-# MAGIC --     GROUP BY t.ticket_id, t.subject, t.category
-# MAGIC -- )
-# MAGIC -- LIMIT 10;
+# MAGIC SELECT 
+# MAGIC     ticket_id,
+# MAGIC     subject,
+# MAGIC     category,
+# MAGIC     ai_summarize(full_conversation) as ai_summary
+# MAGIC FROM (
+# MAGIC     SELECT 
+# MAGIC         t.ticket_id,
+# MAGIC         t.subject,
+# MAGIC         t.category,
+# MAGIC         CONCAT_WS('\n', COLLECT_LIST(ti.message)) as full_conversation
+# MAGIC     FROM fabio_goncalves.tickets_agent.tickets t
+# MAGIC     JOIN fabio_goncalves.tickets_agent.ticket_interactions ti ON t.ticket_id = ti.ticket_id
+# MAGIC     WHERE t.created_at >= CURRENT_DATE - INTERVAL 7 DAYS
+# MAGIC     GROUP BY t.ticket_id, t.subject, t.category
+# MAGIC )
+# MAGIC LIMIT 10;
 
 # COMMAND ----------
 
@@ -237,16 +238,17 @@ display(sla_performance)
 
 # COMMAND ----------
 
+# DBTITLE 1,Cell 19
 agent_performance = (
     agents_df
     .filter(F.col("status") == "ACTIVE")
     .join(
         recent_tickets.groupBy("agent_id").agg(
             F.count("*").alias("tickets_handled"),
-            F.sum(F.when(F.col("status").isin("RESOLVED", "CLOSED"), 1).otherwise(0)).alias("tickets_resolved"),
+            F.sum(F.when(F.col("status").isin("RESOLVED", "CLOSED"), 1).otherwise(0)).alias("tickets_resolved_7d"),
             F.round(F.avg("resolution_time_hours"), 2).alias("avg_resolution_hours"),
             F.round(F.avg("first_response_time_minutes"), 2).alias("avg_first_response_min"),
-            F.round(F.avg("csat_score"), 2).alias("avg_csat"),
+            F.round(F.avg("csat_score"), 2).alias("avg_csat_7d"),
             F.sum(F.when(F.col("sla_breached") == "TRUE", 1).otherwise(0)).alias("sla_breaches")
         ),
         "agent_id",
@@ -257,15 +259,15 @@ agent_performance = (
         "team",
         "specialization",
         "tickets_handled",
-        "tickets_resolved",
+        "tickets_resolved_7d",
         "avg_resolution_hours",
         "avg_first_response_min",
-        "avg_csat",
+        "avg_csat_7d",
         "sla_breaches"
     )
     .withColumn(
         "resolution_rate_pct",
-        F.round(F.col("tickets_resolved") * 100.0 / F.col("tickets_handled"), 2)
+        F.round(F.col("tickets_resolved_7d") * 100.0 / F.col("tickets_handled"), 2)
     )
     .orderBy(F.desc("tickets_handled"))
 )
@@ -465,18 +467,18 @@ print(executive_summary)
 # COMMAND ----------
 
 # Save churn risk analysis
-churn_with_actions.write.mode("overwrite").saveAsTable(f"{SCHEMA_NAME}.churn_risk_analysis")
+churn_with_actions.write.mode("overwrite").saveAsTable(f"{CATALOG_NAME}.{SCHEMA_NAME}.churn_risk_analysis")
 
 # Save agent performance
-agent_performance.write.mode("overwrite").saveAsTable(f"{SCHEMA_NAME}.agent_performance_weekly")
+agent_performance.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"{CATALOG_NAME}.{SCHEMA_NAME}.agent_performance_weekly")
 
 # Save ticket summaries with conversations
-ticket_conversations.write.mode("overwrite").saveAsTable(f"{SCHEMA_NAME}.ticket_conversations")
+ticket_conversations.write.mode("overwrite").saveAsTable(f"{CATALOG_NAME}.{SCHEMA_NAME}.ticket_conversations")
 
 print("✓ Analysis results saved successfully")
-print(f"  - {SCHEMA_NAME}.churn_risk_analysis")
-print(f"  - {SCHEMA_NAME}.agent_performance_weekly")
-print(f"  - {SCHEMA_NAME}.ticket_conversations")
+print(f"  - {CATALOG_NAME}.{SCHEMA_NAME}.churn_risk_analysis")
+print(f"  - {CATALOG_NAME}.{SCHEMA_NAME}.agent_performance_weekly")
+print(f"  - {CATALOG_NAME}.{SCHEMA_NAME}.ticket_conversations")
 
 # COMMAND ----------
 
