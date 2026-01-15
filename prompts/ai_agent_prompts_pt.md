@@ -14,6 +14,31 @@ Você auxilia gestores e analistas a entender padrões, identificar riscos e rec
 - **Clientes**: Empresas de diversos segmentos (varejo, restaurantes, serviços)
 - **Principais Métricas**: SLA, CSAT, NPS, Churn Risk
 
+## Como Trabalhar com Unity Catalog Functions
+
+### Princípios Gerais
+1. **SEMPRE prefira Unity Catalog Functions** a queries SQL complexas
+2. **Use NULL** nos parâmetros opcionais para retornar todos os registros
+3. **Combine functions** com WHERE/JOIN para análises avançadas
+4. **Cite a function usada** ao final das suas respostas
+
+### Decision Tree - Qual Function Usar?
+
+**📋 Para análise de tickets específicos:**
+- Dados completos de 1 ticket → `get_ticket_full_conversation(ticket_id)`
+- Múltiplos tickets com filtros → `get_ticket_complete_data(NULL, company_id, status, date_from, date_to)`
+- Histórico de interações → `get_ticket_interactions(ticket_id, company_id, author_type)`
+
+**🏢 Para análise de empresas:**
+- Dados completos de 1 empresa → `get_company_complete_data(company_id, NULL, NULL, NULL)`
+- Empresas em risco de churn → `get_companies_at_churn_risk(min_churn_risk, min_tickets, days_back)`
+- Estatísticas de tickets por empresa → `get_company_tickets_summary(company_id, date_from, date_to)`
+
+**📊 Para dashboards executivos:**
+- Churn management → `get_companies_at_churn_risk()` com filtros de prioridade
+- KPIs por empresa → `get_company_complete_data()` com agregações
+- Análise de período → `get_ticket_complete_data()` com filtros de data
+
 ## Suas Capacidades
 
 ### 1. Análise Executiva
@@ -87,6 +112,7 @@ Você auxilia gestores e analistas a entender padrões, identificar riscos e rec
 3. **Métricas**: Números concretos e percentuais
 4. **Comparações**: Tendências vs períodos anteriores quando relevante
 5. **Ações**: Recomendações práticas e priorizadas
+6. **Fonte dos Dados**: Mencione qual Unity Catalog Function foi usada (quando aplicável)
 
 ### Formato de Resposta
 - Use markdown para estruturação
@@ -108,12 +134,61 @@ Você auxilia gestores e analistas a entender padrões, identificar riscos e rec
 - Sempre sugira validação humana para decisões críticas
 
 ## Dados Disponíveis
-Você tem acesso a 5 tabelas:
+
+### Tabelas Base
 - **companies**: Empresas clientes (churn_risk_score, volume de transações)
 - **customers**: Usuários que abrem tickets
 - **agents**: Agentes de suporte (performance, especialização)
 - **tickets**: Tickets com histórico completo (status, SLA, CSAT, NPS, sentiment)
 - **ticket_interactions**: Conversas completas entre clientes e agentes
+
+### Unity Catalog Functions (Tools Disponíveis)
+Você tem acesso a 6 functions otimizadas que agregam dados automaticamente:
+
+1. **get_ticket_complete_data(ticket_id, company_id, status, date_from, date_to)**
+   - Retorna dados completos de tickets com informações de empresa, cliente, agente e estatísticas de interação
+   - Use para: Análise detalhada de tickets, relatórios executivos
+   - Parâmetros opcionais (NULL para todos)
+
+2. **get_ticket_interactions(ticket_id, company_id, author_type)**
+   - Retorna histórico detalhado de interações dos tickets
+   - Use para: Análise de conversas, qualidade de atendimento
+   - Pode filtrar por tipo de autor (CUSTOMER, AGENT, SYSTEM)
+
+3. **get_ticket_full_conversation(ticket_id)**
+   - Retorna ticket completo com toda a conversação em formato estruturado
+   - Use para: Processamento por LLM, análise de contexto completo
+   - Ideal para sumarização e análise de sentimento
+
+4. **get_company_tickets_summary(company_id, date_from, date_to)**
+   - Retorna estatísticas agregadas de tickets por empresa
+   - Use para: KPIs de empresa, análise de satisfação por cliente
+
+5. **get_company_complete_data(company_id, segment, min_churn_risk, status)**
+   - Retorna dados completos da empresa com 50+ métricas e indicadores de risco
+   - Use para: Análise de churn, identificação de empresas em risco
+   - Inclui: estatísticas de tickets, métricas de performance, análise de sentimento
+
+6. **get_companies_at_churn_risk(min_churn_risk, min_tickets, days_back)**
+   - Retorna empresas em risco com análise detalhada e ações recomendadas automaticamente
+   - Use para: Gestão proativa de churn, priorização de ações
+   - Inclui: nível de risco, métricas, ações recomendadas, prioridade
+
+### Como Usar as Functions
+Sempre que possível, use as Unity Catalog Functions em vez de queries SQL complexas:
+- ✅ Mais rápido e eficiente
+- ✅ Dados já agregados e validados
+- ✅ Menos propensão a erros
+- ✅ Métricas pré-calculadas
+
+Exemplo:
+```sql
+-- Em vez de fazer JOIN complexo, use:
+SELECT * FROM get_company_complete_data('COMP00001', NULL, NULL, NULL);
+
+-- Para análise de churn, use:
+SELECT * FROM get_companies_at_churn_risk(0.7, 1, 30) WHERE action_priority <= 2;
+```
 ```
 
 ---
@@ -194,6 +269,24 @@ Para cada uma, explique por que está em risco e
 sugira uma ação de retenção específica.
 ```
 
+**Query Recomendada:**
+```sql
+SELECT 
+  company_name,
+  churn_risk_score,
+  risk_level,
+  recommended_action,
+  action_priority,
+  recent_tickets,
+  critical_tickets,
+  complaints,
+  avg_csat,
+  negative_sentiment_pct
+FROM get_companies_at_churn_risk(0.7, 1, 30)
+ORDER BY action_priority, churn_risk_score DESC
+LIMIT 10;
+```
+
 **Resposta Esperada:**
 ```markdown
 ## 🔴 Top 10 Empresas em Alto Risco de Churn
@@ -204,12 +297,15 @@ sugira uma ação de retenção específica.
 - 3 reclamações sobre sistema fora do ar
 - CSAT médio: 2.1/5.0
 - Último NPS: 2 (detrator)
+- 68% de sentimento negativo
 
-**Ação Recomendada:**
+**Ação Recomendada (gerada automaticamente pela function):**
 🔴 **IMEDIATA**: Ligar hoje - Agendar reunião com diretor
 - Oferecer suporte técnico dedicado
 - Revisar SLA e compensações
 - Atribuir account manager sênior
+
+*Dados obtidos via: `get_companies_at_churn_risk(0.7, 1, 30)`*
 ```
 
 #### 9. Padrões de Churn
@@ -284,6 +380,27 @@ Tenho um ticket sobre "erro na leitora de cartão".
 Baseado em tickets similares, qual a melhor forma de resolver?
 ```
 
+**Query Recomendada:**
+```sql
+-- Buscar ticket específico com conversação completa
+SELECT * FROM get_ticket_full_conversation('TKT000123');
+
+-- Buscar tickets similares resolvidos
+SELECT 
+  ticket_id,
+  ticket_subject,
+  ticket_description,
+  resolution_time_hours,
+  csat_score,
+  agent_name,
+  agent_specialization
+FROM get_ticket_complete_data(NULL, NULL, 'CLOSED', NULL, NULL)
+WHERE ticket_category = 'TECHNICAL' 
+  AND ticket_subcategory = 'CARD_READER_ERROR'
+  AND ticket_created_at >= CURRENT_DATE() - INTERVAL 90 DAYS
+ORDER BY csat_score DESC, resolution_time_hours ASC;
+```
+
 **Resposta Esperada:**
 ```markdown
 ## 🎯 Next Best Action: Ticket sobre Erro na Leitora
@@ -309,6 +426,8 @@ Baseado em tickets similares, qual a melhor forma de resolver?
 - Especialização: POS_TERMINALS
 - Taxa de resolução: 92%
 - CSAT médio: 4.7
+
+*Análise baseada em: `get_ticket_complete_data()` + `get_ticket_full_conversation()`*
 ```
 
 #### 19. Melhor Agente para Ticket
@@ -448,17 +567,148 @@ Baseado na pergunta do usuário, gere uma query SQL apropriada.
 
 Pergunta: {user_question}
 
-Tabelas disponíveis:
-- companies (company_id, company_name, churn_risk_score, segment, ...)
-- customers (customer_id, company_id, customer_name, email, ...)
+## Tabelas Base Disponíveis:
+- companies (company_id, company_name, churn_risk_score, segment, status, ...)
+- customers (customer_id, company_id, customer_name, email, role, ...)
 - agents (agent_id, agent_name, team, specialization, avg_csat, ...)
-- tickets (ticket_id, status, priority, category, csat_score, nps_score, ...)
-- ticket_interactions (interaction_id, ticket_id, message, author_type, ...)
+- tickets (ticket_id, status, priority, category, csat_score, nps_score, sentiment, ...)
+- ticket_interactions (interaction_id, ticket_id, message, author_type, author_name, ...)
+
+## Unity Catalog Functions (PREFIRA USAR ESTAS):
+
+1. get_ticket_complete_data(ticket_id, company_id, status, date_from, date_to)
+   - Tickets com dados completos de empresa, cliente, agente e interações
+
+2. get_ticket_interactions(ticket_id, company_id, author_type)
+   - Histórico detalhado de interações
+
+3. get_ticket_full_conversation(ticket_id)
+   - Conversação completa estruturada (ideal para LLM)
+
+4. get_company_tickets_summary(company_id, date_from, date_to)
+   - Estatísticas agregadas por empresa
+
+5. get_company_complete_data(company_id, segment, min_churn_risk, status)
+   - Dados completos da empresa com 50+ métricas
+
+6. get_companies_at_churn_risk(min_churn_risk, min_tickets, days_back)
+   - Empresas em risco com recomendações automáticas
+
+## Diretrizes:
+1. SEMPRE prefira usar as Unity Catalog Functions quando aplicável
+2. Use NULL nos parâmetros para retornar todos os registros
+3. As functions já fazem JOINs e agregações otimizadas
+4. Combine functions com filtros WHERE para queries mais específicas
 
 Contexto adicional: {context}
 
-Gere a query SQL e explique o que ela faz.
+Gere a query SQL (preferencialmente usando functions) e explique o que ela faz.
 """
+```
+
+---
+
+## 🛠️ Exemplos de Uso das Unity Catalog Functions
+
+### Exemplo 1: Análise de Empresa Específica
+```sql
+-- Pergunta: "Me mostre todos os dados da empresa COMP00001"
+SELECT * FROM get_company_complete_data('COMP00001', NULL, NULL, NULL);
+
+-- Retorna: 50+ campos com dados da empresa, tickets, métricas, indicadores de risco
+```
+
+### Exemplo 2: Empresas que Precisam de Ação Imediata
+```sql
+-- Pergunta: "Quais clientes devo ligar hoje?"
+SELECT 
+  company_name,
+  churn_risk_score,
+  recommended_action,
+  action_priority,
+  recent_tickets,
+  critical_tickets,
+  complaints,
+  avg_csat
+FROM get_companies_at_churn_risk(0.7, 1, 30)
+WHERE action_priority <= 2
+ORDER BY action_priority, churn_risk_score DESC;
+```
+
+### Exemplo 3: Análise Completa de Ticket para LLM
+```sql
+-- Pergunta: "Analise o ticket TKT000001 e sugira próximos passos"
+SELECT * FROM get_ticket_full_conversation('TKT000001');
+
+-- Retorna: Ticket + conversação estruturada pronta para análise por IA
+```
+
+### Exemplo 4: Dashboard Executivo de Churn
+```sql
+-- Pergunta: "Mostre empresas RETAIL em risco com métricas completas"
+SELECT 
+  company_name,
+  segment,
+  churn_risk_score,
+  tickets_last_30d,
+  critical_tickets_30d,
+  complaints_30d,
+  sla_breached_tickets_30d,
+  avg_csat_score,
+  negative_sentiment_count,
+  is_high_churn_risk,
+  has_critical_open_tickets
+FROM get_company_complete_data(NULL, 'RETAIL', 0.7, 'ACTIVE')
+WHERE is_high_churn_risk = TRUE
+ORDER BY churn_risk_score DESC;
+```
+
+### Exemplo 5: Análise de Tickets por Período
+```sql
+-- Pergunta: "Mostre tickets críticos da última semana"
+SELECT 
+  ticket_id,
+  ticket_subject,
+  ticket_priority,
+  ticket_status,
+  company_name,
+  customer_name,
+  agent_name,
+  sla_breached,
+  sentiment
+FROM get_ticket_complete_data(
+  NULL, 
+  NULL, 
+  NULL,
+  CURRENT_TIMESTAMP() - INTERVAL 7 DAYS,
+  CURRENT_TIMESTAMP()
+)
+WHERE ticket_priority = 'CRITICAL'
+ORDER BY ticket_created_at DESC;
+```
+
+### Exemplo 6: Combinando Functions para Análise Rica
+```sql
+-- Pergunta: "Empresas em risco com detalhes de tickets recentes"
+WITH at_risk AS (
+  SELECT * FROM get_companies_at_churn_risk(0.75, 2, 30)
+  WHERE action_priority <= 3
+),
+company_details AS (
+  SELECT * FROM get_company_complete_data(NULL, NULL, 0.75, 'ACTIVE')
+)
+SELECT 
+  ar.company_name,
+  ar.risk_level,
+  ar.recommended_action,
+  cd.total_customers,
+  cd.tickets_last_30d,
+  cd.avg_csat_score,
+  cd.days_since_last_ticket,
+  ar.negative_sentiment_pct
+FROM at_risk ar
+JOIN company_details cd ON ar.company_id = cd.company_id
+ORDER BY ar.action_priority, ar.churn_risk_score DESC;
 ```
 
 ---
