@@ -4,6 +4,38 @@
 -- ============================================================================
 
 -- ============================================================================
+-- Function: get_company_id_by_name
+-- Description: Searches for company IDs by company name (supports partial matching)
+-- Parameters:
+--   - company_name_param: Company name or partial name to search
+-- Returns: Table with company_id and company_name
+-- ============================================================================
+CREATE OR REPLACE FUNCTION get_company_id_by_name(
+  company_name_param STRING
+)
+RETURNS TABLE(
+  company_id STRING,
+  company_name STRING,
+  segment STRING,
+  company_size STRING,
+  status STRING,
+  churn_risk_score DECIMAL(3,2)
+)
+COMMENT 'Returns company IDs matching the provided company name (case-insensitive partial match)'
+RETURN
+  SELECT
+    company_id,
+    company_name,
+    segment,
+    company_size,
+    status,
+    churn_risk_score
+  FROM companies
+  WHERE LOWER(company_name) LIKE CONCAT('%', LOWER(company_name_param), '%')
+  ORDER BY company_name;
+
+
+-- ============================================================================
 -- Function: get_ticket_complete_data
 -- Description: Returns complete ticket information including company, customer, 
 --              agent details and aggregated interaction statistics
@@ -741,6 +773,20 @@ RETURN
 -- ============================================================================
 -- Example Usage / Tests
 -- ============================================================================
+
+-- Example 0a: Find company by name (exact match)
+-- SELECT * FROM get_company_id_by_name('Tech Solutions Ltd');
+
+-- Example 0b: Find company by partial name (fuzzy search)
+-- SELECT * FROM get_company_id_by_name('Tech');
+
+-- Example 0c: Use company name lookup to get company_id, then query tickets
+-- WITH company_lookup AS (
+--   SELECT company_id FROM get_company_id_by_name('Restaurant')
+-- )
+-- SELECT t.* 
+-- FROM get_ticket_complete_data(NULL, NULL, NULL, NULL, NULL) t
+-- WHERE t.company_id IN (SELECT company_id FROM company_lookup);
 
 -- Example 1: Get all complete ticket data
 -- SELECT * FROM get_ticket_complete_data(NULL, NULL, NULL, NULL, NULL);
