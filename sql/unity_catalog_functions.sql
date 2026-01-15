@@ -33,6 +33,158 @@ RETURN
 
 
 -- ============================================================================
+-- Function: get_company_all_tickets
+-- Description: Returns all tickets for a company with detailed information
+--              for next best action analysis and pattern recognition
+-- ============================================================================
+CREATE OR REPLACE FUNCTION get_company_all_tickets(
+  company_id_param STRING COMMENT 'Company ID to retrieve all tickets for (e.g., "COMP00001"). Returns complete ticket history with interactions, resolutions, and metrics to enable next best action recommendations and pattern analysis.'
+)
+RETURNS TABLE(
+  -- Ticket Core Info
+  ticket_id STRING,
+  ticket_status STRING,
+  ticket_priority STRING,
+  ticket_category STRING,
+  ticket_subcategory STRING,
+  ticket_subject STRING,
+  ticket_description STRING,
+  ticket_channel STRING,
+  ticket_tags ARRAY<STRING>,
+  -- Ticket Timestamps
+  ticket_created_at TIMESTAMP,
+  ticket_updated_at TIMESTAMP,
+  ticket_closed_at TIMESTAMP,
+  -- Ticket Metrics
+  resolution_time_hours DECIMAL(10,2),
+  first_response_time_minutes INT,
+  sla_breached BOOLEAN,
+  escalated BOOLEAN,
+  reopened_count INT,
+  -- Customer Feedback
+  nps_score INT,
+  csat_score DECIMAL(3,2),
+  sentiment STRING,
+  -- Customer Info
+  customer_id STRING,
+  customer_name STRING,
+  customer_email STRING,
+  customer_role STRING,
+  -- Agent Info
+  agent_id STRING,
+  agent_name STRING,
+  agent_team STRING,
+  agent_specialization STRING,
+  -- Interaction Summary
+  total_interactions INT,
+  customer_interactions_count INT,
+  agent_interactions_count INT,
+  last_interaction_timestamp TIMESTAMP,
+  last_message STRING,
+  -- Solution Applied (from last agent interaction)
+  solution_summary STRING,
+  -- Pattern Recognition Fields
+  is_resolved BOOLEAN,
+  is_repeat_issue BOOLEAN,
+  has_negative_sentiment BOOLEAN,
+  is_critical_open BOOLEAN,
+  days_open INT
+)
+COMMENT 'Returns all tickets for a specific company with comprehensive details for next best action analysis. Includes ticket info, customer feedback, agent details, interaction summary, and solution applied. Use this to analyze patterns, identify recurring issues, and generate recommendations for similar future tickets.'
+RETURN
+  WITH ticket_interactions_agg AS (
+    SELECT 
+      ticket_id,
+      COUNT(*) AS total_interactions,
+      SUM(CASE WHEN author_type = 'CUSTOMER' THEN 1 ELSE 0 END) AS customer_interactions,
+      SUM(CASE WHEN author_type = 'AGENT' THEN 1 ELSE 0 END) AS agent_interactions,
+      MAX(interaction_timestamp) AS last_interaction_timestamp,
+      FIRST_VALUE(message) OVER (PARTITION BY ticket_id ORDER BY interaction_timestamp DESC) AS last_message,
+      FIRST_VALUE(CASE WHEN author_type = 'AGENT' THEN message ELSE NULL END) 
+        OVER (PARTITION BY ticket_id ORDER BY interaction_timestamp DESC) AS solution_summary
+    FROM ticket_interactions
+    GROUP BY ticket_id, interaction_timestamp, author_type, message
+  ),
+  related_tickets AS (
+    SELECT 
+      t1.ticket_id,
+      CASE WHEN COUNT(t2.ticket_id) > 0 THEN TRUE ELSE FALSE END AS is_repeat_issue
+    FROM tickets t1
+    LEFT JOIN tickets t2 ON t1.company_id = t2.company_id 
+      AND t1.subcategory = t2.subcategory
+      AND t2.created_at < t1.created_at
+      AND t2.ticket_id != t1.ticket_id
+    GROUP BY t1.ticket_id
+  )
+  SELECT
+    -- Ticket Core Info
+    t.ticket_id,
+    t.status AS ticket_status,
+    t.priority AS ticket_priority,
+    t.category AS ticket_category,
+    t.subcategory AS ticket_subcategory,
+    t.subject AS ticket_subject,
+    t.description AS ticket_description,
+    t.channel AS ticket_channel,
+    t.tags AS ticket_tags,
+    
+    -- Ticket Timestamps
+    t.created_at AS ticket_created_at,
+    t.updated_at AS ticket_updated_at,
+    t.closed_at AS ticket_closed_at,
+    
+    -- Ticket Metrics
+    t.resolution_time_hours,
+    t.first_response_time_minutes,
+    t.sla_breached,
+    t.escalated,
+    t.reopened_count,
+    
+    -- Customer Feedback
+    t.nps_score,
+    t.csat_score,
+    t.sentiment,
+    
+    -- Customer Info
+    cu.customer_id,
+    cu.customer_name,
+    cu.email AS customer_email,
+    cu.role AS customer_role,
+    
+    -- Agent Info
+    a.agent_id,
+    a.agent_name,
+    a.team AS agent_team,
+    a.specialization AS agent_specialization,
+    
+    -- Interaction Summary
+    COALESCE(int_stats.total_interactions, 0) AS total_interactions,
+    COALESCE(int_stats.customer_interactions, 0) AS customer_interactions_count,
+    COALESCE(int_stats.agent_interactions, 0) AS agent_interactions_count,
+    int_stats.last_interaction_timestamp,
+    int_stats.last_message,
+    
+    -- Solution Applied
+    int_stats.solution_summary,
+    
+    -- Pattern Recognition Fields
+    (t.status IN ('RESOLVED', 'CLOSED')) AS is_resolved,
+    COALESCE(rt.is_repeat_issue, FALSE) AS is_repeat_issue,
+    (t.sentiment IN ('NEGATIVE', 'VERY_NEGATIVE')) AS has_negative_sentiment,
+    (t.status IN ('OPEN', 'IN_PROGRESS') AND t.priority = 'CRITICAL') AS is_critical_open,
+    DATEDIFF(COALESCE(t.closed_at, CURRENT_TIMESTAMP()), t.created_at) AS days_open
+    
+  FROM tickets t
+  INNER JOIN customers cu ON t.customer_id = cu.customer_id
+  LEFT JOIN agents a ON t.agent_id = a.agent_id
+  LEFT JOIN ticket_interactions_agg int_stats ON t.ticket_id = int_stats.ticket_id
+  LEFT JOIN related_tickets rt ON t.ticket_id = rt.ticket_id
+  
+  WHERE t.company_id = company_id_param
+  ORDER BY t.created_at DESC;
+
+
+-- ============================================================================
 -- Function: get_ticket_by_id
 -- Description: Returns complete ticket information including company, customer, 
 --              agent details and interaction statistics
@@ -781,31 +933,56 @@ RETURN
 -- SELECT * FROM get_company_id_by_name('Tech');
 -- SELECT * FROM get_company_id_by_name('Restaurant');
 
--- Example 2: Get complete ticket information
+-- Example 2: Get all tickets from a company (for next best action analysis)
+-- SELECT * FROM get_company_all_tickets('COMP00001');
+-- -- Use this to analyze patterns, solutions applied, and generate recommendations
+
+-- Example 3: Get complete ticket information
 -- SELECT * FROM get_ticket_by_id('TKT000001');
 
--- Example 3: Get ticket conversation history
+-- Example 4: Get ticket conversation history
 -- SELECT * FROM get_ticket_interactions('TKT000001');
 
--- Example 4: Get ticket with full conversation for AI processing
+-- Example 5: Get ticket with full conversation for AI processing
 -- SELECT * FROM get_ticket_full_conversation('TKT000001');
 
--- Example 5: Get complete company information
+-- Example 6: Get complete company information
 -- SELECT * FROM get_company_info('COMP00001');
 
--- Example 6: Get company ticket statistics summary
+-- Example 7: Get company ticket statistics summary
 -- SELECT * FROM get_company_tickets_summary('COMP00001');
 
--- Example 7: Get customer information and ticket history
+-- Example 8: Get customer information and ticket history
 -- SELECT * FROM get_customer_info('CUST00001');
 
--- Example 8: Get agent information and performance metrics
+-- Example 9: Get agent information and performance metrics
 -- SELECT * FROM get_agent_info('AGENT001');
 
--- Example 9: Search company by name and get its summary
+-- Example 10: Search company by name and get its summary
 -- WITH company_lookup AS (
 --   SELECT company_id FROM get_company_id_by_name('Restaurant') LIMIT 1
 -- )
 -- SELECT * FROM get_company_tickets_summary(
 --   (SELECT company_id FROM company_lookup)
 -- );
+
+-- Example 11: Analyze ticket patterns for next best action
+-- -- Find similar resolved tickets to recommend solution for current issue
+-- SELECT ticket_id, ticket_subject, ticket_category, ticket_subcategory,
+--        solution_summary, resolution_time_hours, csat_score
+-- FROM get_company_all_tickets('COMP00001')
+-- WHERE ticket_subcategory = 'CARD_READER_ERROR'
+--   AND is_resolved = TRUE
+--   AND csat_score >= 4.0
+-- ORDER BY ticket_created_at DESC
+-- LIMIT 5;
+
+-- Example 12: Identify repeat issues for proactive action
+-- SELECT ticket_subcategory, COUNT(*) AS occurrence_count,
+--        AVG(resolution_time_hours) AS avg_resolution_hours,
+--        SUM(CASE WHEN is_repeat_issue THEN 1 ELSE 0 END) AS repeat_count
+-- FROM get_company_all_tickets('COMP00001')
+-- WHERE ticket_created_at >= CURRENT_TIMESTAMP() - INTERVAL 90 DAYS
+-- GROUP BY ticket_subcategory
+-- HAVING occurrence_count >= 3
+-- ORDER BY occurrence_count DESC;

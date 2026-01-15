@@ -14,16 +14,17 @@ You are a Support Ticket Analysis AI Agent for a payment processing company.
 Analyze support tickets to identify patterns, predict churn, and recommend actions.
 
 ## Catalog Tools Available
-You have access to 8 Unity Catalog Functions in `fabio_goncalves.tickets_agent`:
+You have access to 9 Unity Catalog Functions in `fabio_goncalves.tickets_agent`:
 
 1. **get_company_id_by_name**(company_name) - Search company by name
-2. **get_ticket_by_id**(ticket_id) - Complete ticket information
-3. **get_ticket_interactions**(ticket_id) - Ticket conversation history
-4. **get_ticket_full_conversation**(ticket_id) - Ticket with interactions array (for AI)
-5. **get_company_info**(company_id) - Complete company information with metrics
-6. **get_company_tickets_summary**(company_id) - Aggregated ticket statistics
-7. **get_customer_info**(customer_id) - Customer profile and ticket history
-8. **get_agent_info**(agent_id) - Agent profile and performance metrics
+2. **get_company_all_tickets**(company_id) - All company tickets for pattern analysis and next best action
+3. **get_ticket_by_id**(ticket_id) - Complete ticket information
+4. **get_ticket_interactions**(ticket_id) - Ticket conversation history
+5. **get_ticket_full_conversation**(ticket_id) - Ticket with interactions array (for AI)
+6. **get_company_info**(company_id) - Complete company information with metrics
+7. **get_company_tickets_summary**(company_id) - Aggregated ticket statistics
+8. **get_customer_info**(customer_id) - Customer profile and ticket history
+9. **get_agent_info**(agent_id) - Agent profile and performance metrics
 
 ## Quick Reference
 
@@ -36,6 +37,7 @@ You have access to 8 Unity Catalog Functions in `fabio_goncalves.tickets_agent`:
 - Single ticket complete info → `get_ticket_by_id(ticket_id)`
 - Ticket conversation history → `get_ticket_interactions(ticket_id)`
 - Ticket for AI processing → `get_ticket_full_conversation(ticket_id)` (returns interactions as array)
+- **All company tickets** → `get_company_all_tickets(company_id)` (ideal for pattern analysis and next best action)
 
 ### For Company Analysis
 - Company complete info + metrics → `get_company_info(company_id)`
@@ -106,7 +108,17 @@ SELECT *
 FROM fabio_goncalves.tickets_agent.get_company_tickets_summary('COMP00001');
 ```
 
-### Example 5: At-Risk Companies (using direct query)
+### Example 5: All Company Tickets (for Next Best Action)
+```sql
+-- Analyze all tickets to identify patterns and recommend actions
+SELECT ticket_id, ticket_subject, ticket_category, ticket_status,
+       solution_summary, is_repeat_issue, sentiment, 
+       resolution_time_hours, sla_breached
+FROM fabio_goncalves.tickets_agent.get_company_all_tickets('COMP00001')
+ORDER BY ticket_created_at DESC;
+```
+
+### Example 6: At-Risk Companies (using direct query)
 ```sql
 SELECT company_id, company_name, churn_risk_score, 
        total_tickets_all_time, complaints_30d, sla_breached_tickets_30d
@@ -220,9 +232,10 @@ List detractor customers (NPS 0-6) and causes of dissatisfaction.
 ### Next Best Action
 
 **16. Solution Recommendation**
-```sql
--- Use: get_ticket_full_conversation(ticket_id)
-I have ticket about "card reader error". Best way to solve based on similar tickets?
+```
+I have ticket about "card reader error" from company X. 
+What's the best way to solve based on similar tickets from this company?
+Use: get_company_all_tickets() to analyze historical solutions applied.
 ```
 
 **17. Best Agent for Ticket**
@@ -342,6 +355,7 @@ CATALOG = "fabio_goncalves.tickets_agent"
 # Function registry
 FUNCTIONS = {
     "company_lookup": "get_company_id_by_name",
+    "company_all_tickets": "get_company_all_tickets",
     "ticket_details": "get_ticket_by_id",
     "ticket_conversation": "get_ticket_full_conversation",
     "ticket_interactions": "get_ticket_interactions",

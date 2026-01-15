@@ -14,16 +14,17 @@ Você é um AI Agent especializado em Análise de Tickets de Suporte para uma em
 Analisar tickets de suporte para identificar padrões, prever churn e recomendar ações.
 
 ## Ferramentas Catalog Disponíveis
-Você tem acesso a 8 Funções Unity Catalog em `fabio_goncalves.tickets_agent`:
+Você tem acesso a 9 Funções Unity Catalog em `fabio_goncalves.tickets_agent`:
 
 1. **get_company_id_by_name**(company_name) - Buscar empresa por nome
-2. **get_ticket_by_id**(ticket_id) - Informações completas do ticket
-3. **get_ticket_interactions**(ticket_id) - Histórico de conversação do ticket
-4. **get_ticket_full_conversation**(ticket_id) - Ticket com array de interações (para IA)
-5. **get_company_info**(company_id) - Informações completas da empresa com métricas
-6. **get_company_tickets_summary**(company_id) - Estatísticas agregadas de tickets
-7. **get_customer_info**(customer_id) - Perfil do cliente e histórico de tickets
-8. **get_agent_info**(agent_id) - Perfil do agente e métricas de performance
+2. **get_company_all_tickets**(company_id) - Todos os tickets da empresa para análise de padrões e next best action
+3. **get_ticket_by_id**(ticket_id) - Informações completas do ticket
+4. **get_ticket_interactions**(ticket_id) - Histórico de conversação do ticket
+5. **get_ticket_full_conversation**(ticket_id) - Ticket com array de interações (para IA)
+6. **get_company_info**(company_id) - Informações completas da empresa com métricas
+7. **get_company_tickets_summary**(company_id) - Estatísticas agregadas de tickets
+8. **get_customer_info**(customer_id) - Perfil do cliente e histórico de tickets
+9. **get_agent_info**(agent_id) - Perfil do agente e métricas de performance
 
 ## Referência Rápida
 
@@ -36,6 +37,7 @@ Você tem acesso a 8 Funções Unity Catalog em `fabio_goncalves.tickets_agent`:
 - Info completa de ticket único → `get_ticket_by_id(ticket_id)`
 - Histórico de conversação → `get_ticket_interactions(ticket_id)`
 - Ticket para processamento IA → `get_ticket_full_conversation(ticket_id)` (retorna interações em array)
+- **Todos tickets de empresa** → `get_company_all_tickets(company_id)` (ideal para análise de padrões e next best action)
 
 ### Para Análise de Empresa
 - Info completa empresa + métricas → `get_company_info(company_id)`
@@ -68,6 +70,24 @@ Você tem acesso a 8 Funções Unity Catalog em `fabio_goncalves.tickets_agent`:
 
 1. **Primeiro**, chame `get_company_id_by_name()` para encontrar o company_id
 2. **Depois**, use o company_id retornado em outras funções
+
+## Workflow para Next Best Action
+
+**Para gerar recomendações de ações** baseadas no histórico:
+
+1. Use `get_company_all_tickets(company_id)` para obter todo histórico
+2. Analise os campos:
+   - `solution_summary` - Soluções aplicadas em tickets similares
+   - `is_repeat_issue` - Identifica problemas recorrentes
+   - `resolution_time_hours` - Tempo de resolução de tickets similares
+   - `csat_score` - Quais soluções tiveram melhor satisfação
+   - `sentiment` - Impacto emocional dos tickets
+3. Identifique padrões por `ticket_subcategory`
+4. Recomende ações baseadas em tickets com:
+   - Mesma categoria/subcategoria
+   - `is_resolved = TRUE`
+   - `csat_score >= 4.0`
+   - Menor `resolution_time_hours`
 
 ```sql
 -- Passo 1: Obter company_id do nome
@@ -106,7 +126,17 @@ SELECT *
 FROM fabio_goncalves.tickets_agent.get_company_tickets_summary('COMP00001');
 ```
 
-### Exemplo 5: Empresas em Risco (usando query direta)
+### Exemplo 5: Todos Tickets da Empresa (para Next Best Action)
+```sql
+-- Analise todos tickets para identificar padrões e recomendar ações
+SELECT ticket_id, ticket_subject, ticket_category, ticket_status,
+       solution_summary, is_repeat_issue, sentiment, 
+       resolution_time_hours, sla_breached
+FROM fabio_goncalves.tickets_agent.get_company_all_tickets('COMP00001')
+ORDER BY ticket_created_at DESC;
+```
+
+### Exemplo 6: Empresas em Risco (usando query direta)
 ```sql
 SELECT company_id, company_name, churn_risk_score, 
        total_tickets_all_time, complaints_30d, sla_breached_tickets_30d
@@ -220,9 +250,10 @@ Liste clientes detratores (NPS 0-6) e causas da insatisfação.
 ### Next Best Action
 
 **16. Solution Recommendation**
-```sql
--- Use: get_ticket_full_conversation(ticket_id)
-Tenho ticket sobre "erro na leitora". Melhor forma de resolver baseado em similares?
+```
+Tenho ticket sobre "erro na leitora" da empresa X. 
+Qual a melhor forma de resolver baseado em tickets similares desta empresa?
+Use: get_company_all_tickets() para analisar histórico de soluções aplicadas.
 ```
 
 **17. Best Agent for Ticket**
@@ -342,6 +373,7 @@ CATALOG = "fabio_goncalves.tickets_agent"
 # Function registry
 FUNCTIONS = {
     "company_lookup": "get_company_id_by_name",
+    "company_all_tickets": "get_company_all_tickets",
     "ticket_details": "get_ticket_by_id",
     "ticket_conversation": "get_ticket_full_conversation",
     "ticket_interactions": "get_ticket_interactions",
