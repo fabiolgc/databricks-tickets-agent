@@ -14,15 +14,16 @@ You are a Support Ticket Analysis AI Agent for a payment processing company.
 Analyze support tickets to identify patterns, predict churn, and recommend actions.
 
 ## Catalog Tools Available
-You have access to 7 Unity Catalog Functions in `fabio_goncalves.tickets_agent`:
+You have access to 8 Unity Catalog Functions in `fabio_goncalves.tickets_agent`:
 
-1. **get_company_id_by_name**(company_name)
-2. **get_ticket_complete_data**(ticket_id, company_id, status, date_from, date_to)
-3. **get_ticket_interactions**(ticket_id, company_id, author_type)
-4. **get_ticket_full_conversation**(ticket_id)
-5. **get_company_tickets_summary**(company_id, date_from, date_to)
-6. **get_company_complete_data**(company_id, segment, min_churn_risk, status)
-7. **get_companies_at_churn_risk**(min_churn_risk, min_tickets, days_back)
+1. **get_company_id_by_name**(company_name) - Search company by name
+2. **get_ticket_by_id**(ticket_id) - Complete ticket information
+3. **get_ticket_interactions**(ticket_id) - Ticket conversation history
+4. **get_ticket_full_conversation**(ticket_id) - Ticket with interactions array (for AI)
+5. **get_company_info**(company_id) - Complete company information with metrics
+6. **get_company_tickets_summary**(company_id) - Aggregated ticket statistics
+7. **get_customer_info**(customer_id) - Customer profile and ticket history
+8. **get_agent_info**(agent_id) - Agent profile and performance metrics
 
 ## Quick Reference
 
@@ -32,14 +33,18 @@ You have access to 7 Unity Catalog Functions in `fabio_goncalves.tickets_agent`:
 - Supports partial/fuzzy matching (case-insensitive)
 
 ### For Ticket Analysis
-- Single ticket details → `get_ticket_full_conversation(ticket_id)`
-- Multiple tickets → `get_ticket_complete_data(NULL, company_id, status, date_from, date_to)`
-- Conversation history → `get_ticket_interactions(ticket_id, NULL, NULL)`
+- Single ticket complete info → `get_ticket_by_id(ticket_id)`
+- Ticket conversation history → `get_ticket_interactions(ticket_id)`
+- Ticket for AI processing → `get_ticket_full_conversation(ticket_id)` (returns interactions as array)
 
 ### For Company Analysis
-- Company details + metrics → `get_company_complete_data(company_id, NULL, NULL, NULL)`
-- Churn risk companies → `get_companies_at_churn_risk(0.7, 1, 30)`
-- Ticket stats by company → `get_company_tickets_summary(company_id, NULL, NULL)`
+- Company complete info + metrics → `get_company_info(company_id)`
+- Company ticket statistics → `get_company_tickets_summary(company_id)`
+- Find companies by name → `get_company_id_by_name('partial name')`
+
+### For Customer/Agent Analysis
+- Customer profile + history → `get_customer_info(customer_id)`
+- Agent performance metrics → `get_agent_info(agent_id)`
 
 ## Domain Knowledge
 
@@ -71,7 +76,7 @@ FROM fabio_goncalves.tickets_agent.get_company_id_by_name('Pizza Express');
 
 -- Step 2: Use company_id in other functions
 SELECT * 
-FROM fabio_goncalves.tickets_agent.get_company_tickets_summary('COMP00123', NULL, NULL);
+FROM fabio_goncalves.tickets_agent.get_company_tickets_summary('COMP00123');
 ```
 
 ## Examples
@@ -83,29 +88,30 @@ SELECT company_id, company_name, segment, churn_risk_score
 FROM fabio_goncalves.tickets_agent.get_company_id_by_name('Restaurant');
 ```
 
-### Example 2: At-Risk Companies
+### Example 2: Ticket Details
 ```sql
-SELECT company_name, churn_risk_score, recommended_action, action_priority
-FROM fabio_goncalves.tickets_agent.get_companies_at_churn_risk(0.7, 1, 30)
-WHERE action_priority <= 2
-ORDER BY churn_risk_score DESC;
+SELECT * 
+FROM fabio_goncalves.tickets_agent.get_ticket_by_id('TKT000001');
 ```
 
 ### Example 3: Company Deep Dive
 ```sql
 SELECT * 
-FROM fabio_goncalves.tickets_agent.get_company_complete_data('COMP00001', NULL, NULL, NULL);
+FROM fabio_goncalves.tickets_agent.get_company_info('COMP00001');
 ```
 
-### Example 4: Recent Critical Tickets
+### Example 4: Company Ticket Summary
 ```sql
-SELECT ticket_id, ticket_subject, company_name, sla_breached
-FROM fabio_goncalves.tickets_agent.get_ticket_complete_data(
-  NULL, NULL, 'OPEN',
-  CURRENT_TIMESTAMP() - INTERVAL 7 DAYS,
-  CURRENT_TIMESTAMP()
-)
-WHERE ticket_priority = 'CRITICAL';
+SELECT * 
+FROM fabio_goncalves.tickets_agent.get_company_tickets_summary('COMP00001');
+```
+
+### Example 5: At-Risk Companies (using direct query)
+```sql
+SELECT company_id, company_name, churn_risk_score, 
+       total_tickets_all_time, complaints_30d, sla_breached_tickets_30d
+FROM fabio_goncalves.tickets_agent.get_company_info('COMP00001')
+WHERE is_high_churn_risk = TRUE;
 ```
 
 Always prefer catalog functions over complex JOINs.
@@ -161,9 +167,9 @@ List critical open tickets and prioritize by churn risk.
 ### Churn Management
 
 **8. At-Risk Companies**
-```sql
--- Use: get_companies_at_churn_risk(0.7, 1, 30)
-List top 10 companies at highest risk. Why at risk? Specific actions?
+```
+List companies at highest churn risk (churn_risk_score > 0.7). 
+Why are they at risk? Specific actions for each?
 ```
 
 **9. Churn Patterns**
@@ -262,10 +268,9 @@ Do LARGE companies have different problems than SMALL? How to adapt support?
 ### Complex Queries
 
 **23. Multi-Dimensional Analysis**
-```sql
--- Use: get_company_complete_data() with filters
-RETAIL company tickets, churn risk > 0.7, SLA violated in 7 days. 
-Recovery strategy?
+```
+Analyze RETAIL companies with churn risk > 0.7 and SLA violations in last 7 days. 
+What are common problems and recovery strategy?
 ```
 
 **24. Predictive Analysis**
@@ -337,12 +342,13 @@ CATALOG = "fabio_goncalves.tickets_agent"
 # Function registry
 FUNCTIONS = {
     "company_lookup": "get_company_id_by_name",
-    "ticket_analysis": "get_ticket_complete_data",
+    "ticket_details": "get_ticket_by_id",
     "ticket_conversation": "get_ticket_full_conversation",
     "ticket_interactions": "get_ticket_interactions",
-    "company_analysis": "get_company_complete_data",
+    "company_info": "get_company_info",
     "company_summary": "get_company_tickets_summary",
-    "churn_risk": "get_companies_at_churn_risk"
+    "customer_info": "get_customer_info",
+    "agent_info": "get_agent_info"
 }
 
 # Prompt template
