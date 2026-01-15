@@ -22,7 +22,10 @@ databricks-tickets-agent/
 ├── notebooks/               # Databricks notebooks
 │   ├── setup_and_analysis_notebook.py  # Complete setup + analysis
 │   ├── genai_agent_example.py          # GenAI examples
-│   └── ai_agent_implementation.py      # AI Agent implementation
+│   ├── ai_agent_implementation.py      # AI Agent implementation
+│   ├── churn_feature_store.py          # Feature Store for churn prediction
+│   ├── automl_churn_training.py        # AutoML training notebook
+│   └── feature_store_refresh_job.py    # Automated feature refresh
 │
 ├── prompts/                 # AI Agent prompts (PT & EN)
 │   ├── ai_agent_prompts_pt.md          # AI Agent prompts (Portuguese)
