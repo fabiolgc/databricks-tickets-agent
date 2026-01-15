@@ -44,7 +44,9 @@ databricks-tickets-agent/
     ├── QUICKSTART_pt.md     # 5-minute quick start (Portuguese)
     ├── QUICKSTART_en.md     # 5-minute quick start (English)
     ├── PROJECT_SUMMARY_pt.md # Executive summary (Portuguese)
-    └── PROJECT_SUMMARY_en.md # Executive summary (English)
+    ├── PROJECT_SUMMARY_en.md # Executive summary (English)
+    ├── FEATURE_STORE_GUIDE_pt.md # Feature Store guide (Portuguese)
+    └── FEATURE_STORE_GUIDE_en.md # Feature Store guide (English)
 
 ```
 
@@ -65,6 +67,12 @@ databricks fs cp data/*.csv dbfs:/FileStore/tickets/
 - Use `sql/quick_demo_notebook.sql` for quick demos
 - Execute queries from `sql/analysis_queries.sql`
 - Create Genie Space for natural language queries
+
+### 4. 🆕 Train Churn Prediction Model (Optional)
+- Run `sql/setup_feature_store.sql` to setup environment
+- Execute `notebooks/churn_feature_store.py` to create features
+- Use `notebooks/automl_churn_training.py` to train model
+- See `docs/FEATURE_STORE_GUIDE_pt.md` for detailed instructions
 
 ## Key Features
 
@@ -94,6 +102,7 @@ All detailed documentation is available in Portuguese in the `docs/` folder:
 3. **Performance Monitoring** - Track SLA compliance and team metrics
 4. **Trend Analysis** - Discover patterns and common issues
 5. **Next Best Action** - AI-powered recommendations
+6. **🆕 ML-Powered Churn Prediction** - Train and deploy AutoML models using Feature Store
 
 ## Technical Stack
 
@@ -102,6 +111,9 @@ All detailed documentation is available in Portuguese in the `docs/` folder:
 - **Unity Catalog** - Governance and PII tags
 - **PySpark** - Data processing
 - **Databricks Genie** - Natural language queries
+- **🆕 Feature Store** - ML feature management and versioning
+- **🆕 AutoML** - Automated model training and optimization
+- **🆕 MLflow** - Model tracking and deployment
 
 ## Requirements
 
