@@ -30,6 +30,8 @@ databricks-tickets-agent/
 ├── prompts/                 # AI Agent prompts (PT & EN)
 │   ├── ai_agent_prompts_pt.md          # AI Agent prompts (Portuguese)
 │   ├── ai_agent_prompts_en.md          # AI Agent prompts (English)
+│   ├── ai_agent_prompts_simple_pt.md   # 🆕 Simple prompts (Portuguese)
+│   ├── ai_agent_prompts_simple_en.md   # 🆕 Simple prompts (English)
 │   ├── genie_example_prompts_pt.md     # Genie examples (Portuguese)
 │   └── genie_example_prompts_en.md     # Genie examples (English)
 │

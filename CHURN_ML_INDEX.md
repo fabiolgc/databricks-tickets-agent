@@ -162,6 +162,13 @@ databricks-tickets-agent/
 │   │
 │   └── [existing notebooks...]             📋 Already existed
 │
+├── 💬 prompts/                 (3 new files)
+│   ├── ai_agent_prompts_simple_pt.md       🆕 Simple prompts (PT)
+│   ├── ai_agent_prompts_simple_en.md       🆕 Simple prompts (EN)
+│   ├── README_PROMPTS.md                   📚 Prompts guide
+│   │
+│   └── [existing prompts...]               📋 Already existed
+│
 ├── 📚 docs/                    (4 new files)
 │   ├── QUICK_REFERENCE_CHURN.md            👉 START HERE!
 │   ├── FEATURE_STORE_GUIDE_pt.md           📖 Complete guide (PT)
