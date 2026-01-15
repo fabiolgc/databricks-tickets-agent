@@ -71,6 +71,24 @@ You have access to 9 Unity Catalog Functions in `fabio_goncalves.tickets_agent`:
 1. **First**, call `get_company_id_by_name()` to find the company_id
 2. **Then**, use the returned company_id in other functions
 
+## Workflow for Next Best Action
+
+**To generate action recommendations** based on historical data:
+
+1. Use `get_company_all_tickets(company_id)` to get complete history
+2. Analyze the fields:
+   - `solution_summary` - Solutions applied in similar tickets
+   - `is_repeat_issue` - Identifies recurring problems
+   - `resolution_time_hours` - Resolution time for similar tickets
+   - `csat_score` - Which solutions had better satisfaction
+   - `sentiment` - Emotional impact of tickets
+3. Identify patterns by `ticket_subcategory`
+4. Recommend actions based on tickets with:
+   - Same category/subcategory
+   - `is_resolved = TRUE`
+   - `csat_score >= 4.0`
+   - Lower `resolution_time_hours`
+
 ```sql
 -- Step 1: Get company_id from name
 SELECT company_id, company_name 
@@ -131,6 +149,216 @@ Always prefer catalog functions over complex JOINs.
 
 ---
 
+## 🔧 Detailed Function Usage Guide
+
+### 1️⃣ get_company_id_by_name(company_name)
+**When to use**: Whenever user mentions company name
+**Returns**: company_id, company_name, segment, company_size, status, churn_risk_score
+
+```sql
+-- Example: Flexible search
+SELECT * FROM get_company_id_by_name('pizza');
+-- Returns: Pizza Express, Central Pizza, etc.
+
+-- Workflow usage
+WITH company AS (
+  SELECT company_id FROM get_company_id_by_name('Tech Solutions') LIMIT 1
+)
+SELECT * FROM get_company_info((SELECT company_id FROM company));
+```
+
+### 2️⃣ get_company_all_tickets(company_id)
+**When to use**: For pattern analysis, next best action, identify recurring issues
+**Important fields**: solution_summary, is_repeat_issue, is_resolved, has_negative_sentiment
+
+```sql
+-- Find effective solutions for specific problem
+SELECT solution_summary, resolution_time_hours, csat_score
+FROM get_company_all_tickets('COMP00001')
+WHERE ticket_subcategory = 'CARD_READER_ERROR'
+  AND is_resolved = TRUE
+  AND csat_score >= 4.0
+ORDER BY ticket_created_at DESC LIMIT 5;
+
+-- Identify recurring problems
+SELECT ticket_subcategory, COUNT(*) as total,
+       SUM(CASE WHEN is_repeat_issue THEN 1 ELSE 0 END) as repeats
+FROM get_company_all_tickets('COMP00001')
+GROUP BY ticket_subcategory
+HAVING repeats > 0;
+```
+
+### 3️⃣ get_ticket_by_id(ticket_id)
+**When to use**: For detailed analysis of a specific ticket
+**Returns**: All ticket data + company + customer + agent + metrics
+
+```sql
+-- Complete ticket analysis
+SELECT ticket_id, ticket_subject, ticket_status, 
+       company_name, customer_name, agent_name,
+       resolution_time_hours, csat_score, sentiment
+FROM get_ticket_by_id('TKT000001');
+```
+
+### 4️⃣ get_ticket_interactions(ticket_id)
+**When to use**: To see chronological conversation history
+**Returns**: List of messages ordered by timestamp
+
+```sql
+-- View entire conversation
+SELECT interaction_timestamp, author_type, author_name, message
+FROM get_ticket_interactions('TKT000001')
+ORDER BY interaction_timestamp;
+```
+
+### 5️⃣ get_ticket_full_conversation(ticket_id)
+**When to use**: To process conversation with AI/LLM (returns structured array)
+**Returns**: Complete ticket + interactions array
+
+```sql
+-- For sentiment analysis or summarization
+SELECT ticket_id, ticket_subject, interactions
+FROM get_ticket_full_conversation('TKT000001');
+```
+
+### 6️⃣ get_company_info(company_id)
+**When to use**: For deep company analysis with KPIs and risk indicators
+**Returns**: 40+ fields including ticket metrics, satisfaction, churn risk
+
+```sql
+-- Executive dashboard for company
+SELECT company_name, churn_risk_score, 
+       total_tickets_all_time, tickets_last_30d,
+       avg_csat_score, avg_nps_score,
+       is_high_churn_risk, has_critical_open_tickets
+FROM get_company_info('COMP00001');
+
+-- Find at-risk companies
+SELECT company_id, company_name, churn_risk_score,
+       complaints_30d, sla_breached_tickets_30d
+FROM get_company_info('COMP00001')
+WHERE is_high_churn_risk = TRUE;
+```
+
+### 7️⃣ get_company_tickets_summary(company_id)
+**When to use**: For aggregated ticket statistics of company
+**Returns**: Counters by status, priority, SLA, average metrics
+
+```sql
+-- Quick KPIs
+SELECT company_name, total_tickets, open_tickets,
+       avg_resolution_time_hours, avg_csat_score,
+       sla_breached_tickets
+FROM get_company_tickets_summary('COMP00001');
+```
+
+### 8️⃣ get_customer_info(customer_id)
+**When to use**: For customer profile analysis and history
+**Returns**: Customer data + ticket statistics
+
+```sql
+-- Complete customer profile
+SELECT customer_name, customer_email, customer_role,
+       total_tickets, avg_csat_score
+FROM get_customer_info('CUST00001');
+```
+
+### 9️⃣ get_agent_info(agent_id)
+**When to use**: To evaluate agent performance and specialization
+**Returns**: Agent data + performance metrics
+
+```sql
+-- Agent performance
+SELECT agent_name, agent_specialization,
+       total_tickets_resolved, avg_csat,
+       tickets_30d, avg_csat_30d
+FROM get_agent_info('AGENT001');
+
+-- Find best agent for technical ticket
+SELECT agent_name, agent_specialization, avg_csat
+FROM get_agent_info('AGENT001')
+WHERE agent_specialization LIKE '%TECHNICAL%'
+ORDER BY avg_csat DESC;
+```
+
+---
+
+## 🎯 Common Query Patterns
+
+### Pattern 1: Complete Analysis Workflow
+```sql
+-- 1. Find company
+WITH comp AS (
+  SELECT company_id FROM get_company_id_by_name('Restaurant') LIMIT 1
+),
+-- 2. Get company info
+comp_info AS (
+  SELECT * FROM get_company_info((SELECT company_id FROM comp))
+),
+-- 3. Analyze tickets
+comp_tickets AS (
+  SELECT * FROM get_company_all_tickets((SELECT company_id FROM comp))
+)
+SELECT 
+  ci.company_name,
+  ci.churn_risk_score,
+  COUNT(ct.ticket_id) as total_tickets,
+  AVG(ct.csat_score) as avg_satisfaction
+FROM comp_info ci
+CROSS JOIN comp_tickets ct
+GROUP BY ci.company_name, ci.churn_risk_score;
+```
+
+### Pattern 2: Next Best Action
+```sql
+-- Recommend solution based on history
+WITH similar_tickets AS (
+  SELECT solution_summary, csat_score, resolution_time_hours
+  FROM get_company_all_tickets('COMP00001')
+  WHERE ticket_subcategory = 'INSTANT_PAYMENT_ERROR'
+    AND is_resolved = TRUE
+    AND csat_score >= 4.0
+  ORDER BY ticket_created_at DESC
+  LIMIT 10
+)
+SELECT 
+  solution_summary,
+  AVG(csat_score) as avg_satisfaction,
+  AVG(resolution_time_hours) as avg_time
+FROM similar_tickets
+GROUP BY solution_summary
+ORDER BY avg_satisfaction DESC, avg_time ASC;
+```
+
+### Pattern 3: Identify At-Risk Customers
+```sql
+-- Companies at high risk + critical open tickets
+SELECT 
+  company_id, company_name, churn_risk_score,
+  critical_tickets_30d, complaints_30d,
+  avg_csat_score, days_since_last_ticket
+FROM get_company_info('COMP00001')
+WHERE is_high_churn_risk = TRUE
+  AND (critical_tickets_30d > 0 OR complaints_30d >= 2)
+ORDER BY churn_risk_score DESC;
+```
+
+### Pattern 4: Ideal Agent Analysis
+```sql
+-- Which agent should handle critical instant payment ticket?
+SELECT 
+  agent_name, agent_specialization,
+  avg_csat, tickets_resolved,
+  avg_csat_30d, resolved_30d
+FROM get_agent_info('AGENT001')
+WHERE agent_specialization IN ('INSTANT_PAYMENTS', 'TECHNICAL', 'PAYMENT_GATEWAY')
+  AND avg_csat >= 4.0
+  AND resolved_30d > 5
+ORDER BY avg_csat_30d DESC, resolved_30d DESC;
+```
+
+---
+
 ## 💬 Common Questions
 
 ### Executive Analysis
@@ -138,6 +366,7 @@ Always prefer catalog functions over complex JOINs.
 **1. Weekly Summary**
 ```
 Generate executive summary of last week: volume, critical tickets, main issues, SLA, satisfaction.
+Use: Combine get_company_info() for all companies to aggregate metrics.
 ```
 
 **2. Manager Dashboard**
@@ -157,11 +386,13 @@ Compare this month with previous. What improved/worsened?
 **4. Top Problems**
 ```
 5 most common problems this month with volume, impact, and solution suggestions.
+Use: get_company_all_tickets() aggregated by ticket_subcategory.
 ```
 
 **5. Root Cause Analysis**
 ```
 Many tickets about "terminal not turning on". Analyze patterns and identify root causes.
+Use: get_company_all_tickets() filtered by subcategory + analyze solution_summary.
 ```
 
 **6. Emerging Issues**
@@ -172,6 +403,7 @@ Problems growing this week vs historical average.
 **7. Critical Open Tickets**
 ```
 List critical open tickets and prioritize by churn risk.
+Use: get_company_all_tickets() WHERE is_critical_open = TRUE, join with get_company_info() for churn_risk_score.
 ```
 
 ---
@@ -182,6 +414,7 @@ List critical open tickets and prioritize by churn risk.
 ```
 List companies at highest churn risk (churn_risk_score > 0.7). 
 Why are they at risk? Specific actions for each?
+Use: get_company_info() WHERE is_high_churn_risk = TRUE, analyze complaints_30d, sla_breached_tickets_30d.
 ```
 
 **9. Churn Patterns**
@@ -201,6 +434,7 @@ Which customers to contact today preventively?
 **11. Best Agent**
 ```
 Best agent this month? (CSAT, resolution time, volume)
+Use: get_agent_info() for all agents, order by avg_csat_30d and resolved_30d.
 ```
 
 **12. Training Needs**
@@ -241,11 +475,13 @@ Use: get_company_all_tickets() to analyze historical solutions applied.
 **17. Best Agent for Ticket**
 ```
 Critical technical ticket about instant payments. Which agent should handle it?
+Use: get_agent_info() filtered by agent_specialization and ordered by avg_csat_30d.
 ```
 
 **18. Estimated Time**
 ```
 Based on similar tickets, expected time to resolve?
+Use: get_company_all_tickets() filtered by same subcategory, AVG(resolution_time_hours).
 ```
 
 ---
@@ -374,6 +610,47 @@ Available tools in {CATALOG}:
 
 Generate SQL using catalog functions. Prefer functions over raw table queries.
 """
+```
+
+---
+
+## 💡 Best Practices and Tips
+
+### ✅ DOs
+1. **Always search by name first**: Use `get_company_id_by_name()` when user mentions company name
+2. **Use get_company_all_tickets() for patterns**: Ideal for historical analysis and next best action
+3. **Combine functions with CTEs**: Use WITH clauses for complex queries
+4. **Filter relevant data**: Leverage fields like `is_resolved`, `is_repeat_issue`, `has_negative_sentiment`
+5. **Analyze satisfaction metrics**: CSAT >= 4.0 indicates effective solutions
+6. **Order by timestamp**: Use `ORDER BY ticket_created_at DESC` for most recent data
+7. **Use LIMIT wisely**: For large histories, limit to most relevant results
+
+### ❌ DON'Ts
+1. **Don't do manual JOINs**: Functions already handle necessary JOINs
+2. **Don't ignore calculated fields**: Use `is_high_churn_risk`, `is_critical_open` instead of recalculating
+3. **Don't fetch unnecessary data**: Use only the function needed for the question
+4. **Don't assume IDs**: Always validate company_id before using in other functions
+
+### 🎯 Performance Tips
+- For multi-company analysis, use aggregations
+- For complete history, `get_company_all_tickets()` is more efficient than multiple calls
+- Filter by dates when relevant to reduce processed data
+- Use subcategory for granular problem analysis
+
+### 📊 Data Quality Analysis
+- **High confidence**: CSAT >= 4.0 AND resolution_time_hours < average AND is_resolved = TRUE
+- **Recurring issue**: is_repeat_issue = TRUE OR COUNT(subcategory) > 3 in 30 days
+- **At-risk customer**: churn_risk_score > 0.7 AND (complaints_30d >= 2 OR sla_breached_tickets_30d > 0)
+- **Effective agent**: avg_csat_30d >= 4.0 AND resolved_30d >= team average
+
+### 🔄 Recommended Workflow
+```
+1. Identify entity (company/ticket/customer/agent)
+2. If name → get_company_id_by_name()
+3. Get context → get_company_info() or get_ticket_by_id()
+4. Deep analysis → get_company_all_tickets() for patterns
+5. Specific metrics → get_company_tickets_summary()
+6. Granular details → get_ticket_interactions() or get_ticket_full_conversation()
 ```
 
 ---
